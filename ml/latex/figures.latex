@@ -1,0 +1,487 @@
+\begin{center}
+    \textbf{Complement Naive Bayes}
+\end{center}
+\begin{table}[H]
+\parbox{.45\linewidth}{
+\centering
+\begin{tabular}{lrrr}
+\toprule
+size &  precision &  recall &    f1 \\
+\midrule
+ 100 &      0.369 &   0.384 & 0.323 \\
+ 200 &      0.340 &   0.362 & 0.343 \\
+ 300 &      0.380 &   0.401 & 0.382 \\
+ 400 &      0.387 &   0.415 & 0.359 \\
+ 500 &      0.355 &   0.387 & 0.362 \\
+ 600 &      0.341 &   0.367 & 0.333 \\
+ 700 &      0.403 &   0.442 & 0.397 \\
+ 800 &      0.380 &   0.397 & 0.371 \\
+ 900 &      0.371 &   0.389 & 0.337 \\
+1000 &      0.398 &   0.441 & 0.382 \\
+1100 &      0.401 &   0.432 & 0.403 \\
+1200 &      0.349 &   0.380 & 0.331 \\
+1300 &      0.412 &   0.462 & 0.421 \\
+1400 &      0.388 &   0.417 & 0.348 \\
+1500 &      0.408 &   0.457 & 0.402 \\
+1600 &      0.391 &   0.407 & 0.339 \\
+1700 &      0.382 &   0.407 & 0.352 \\
+1800 &      0.379 &   0.392 & 0.317 \\
+1883 &      0.379 &   0.393 & 0.322 \\
+\bottomrule
+\end{tabular}
+\caption{All iteration results for CountCNB}
+\label{tab:CountCNB}
+}
+\hfill\parbox{.45\linewidth}{
+\centering
+\begin{tabular}{lrrr}
+\toprule
+size &  precision &  recall &    f1 \\
+\midrule
+ 100 &      0.247 &   0.255 & 0.207 \\
+ 200 &      0.216 &   0.243 & 0.207 \\
+ 300 &      0.319 &   0.274 & 0.249 \\
+ 400 &      0.345 &   0.324 & 0.328 \\
+ 500 &      0.340 &   0.335 & 0.315 \\
+ 600 &      0.345 &   0.345 & 0.343 \\
+ 700 &      0.326 &   0.309 & 0.309 \\
+ 800 &      0.361 &   0.367 & 0.361 \\
+ 900 &      0.376 &   0.380 & 0.370 \\
+1000 &      0.371 &   0.390 & 0.375 \\
+1100 &      0.395 &   0.412 & 0.397 \\
+1200 &      0.354 &   0.360 & 0.349 \\
+1300 &      0.362 &   0.377 & 0.363 \\
+1400 &      0.367 &   0.378 & 0.365 \\
+1500 &      0.395 &   0.414 & 0.397 \\
+1600 &      0.388 &   0.416 & 0.394 \\
+1700 &      0.377 &   0.388 & 0.376 \\
+1800 &      0.387 &   0.412 & 0.391 \\
+1883 &      0.388 &   0.410 & 0.391 \\
+\bottomrule
+\end{tabular}
+\caption{All iteration results for TfidfCNB}
+\label{tab:TfidfCNB}
+}
+\end{table}
+
+\begin{center}
+    \textbf{Decision Tree}
+\end{center}
+\begin{table}[H]
+\parbox{.45\linewidth}{
+\centering
+\begin{tabular}{lrrr}
+\toprule
+size &  precision &  recall &    f1 \\
+\midrule
+ 100 &      0.276 &   0.287 & 0.279 \\
+ 200 &      0.311 &   0.284 & 0.280 \\
+ 300 &      0.285 &   0.295 & 0.277 \\
+ 400 &      0.387 &   0.355 & 0.363 \\
+ 500 &      0.368 &   0.338 & 0.343 \\
+ 600 &      0.323 &   0.316 & 0.316 \\
+ 700 &      0.347 &   0.330 & 0.333 \\
+ 800 &      0.334 &   0.321 & 0.323 \\
+ 900 &      0.320 &   0.314 & 0.314 \\
+1000 &      0.379 &   0.350 & 0.356 \\
+1100 &      0.435 &   0.394 & 0.404 \\
+1200 &      0.381 &   0.356 & 0.363 \\
+1300 &      0.341 &   0.326 & 0.327 \\
+1400 &      0.340 &   0.324 & 0.328 \\
+1500 &      0.311 &   0.312 & 0.309 \\
+1600 &      0.378 &   0.351 & 0.357 \\
+1700 &      0.350 &   0.310 & 0.313 \\
+1800 &      0.386 &   0.352 & 0.362 \\
+1883 &      0.365 &   0.328 & 0.335 \\
+\bottomrule
+\end{tabular}
+\caption{All iteration results for CountDT}
+\label{tab:CountDT}
+}
+\hfill\parbox{.45\linewidth}{
+\centering
+\begin{tabular}{lrrr}
+\toprule
+size &  precision &  recall &    f1 \\
+\midrule
+ 100 &      0.315 &   0.302 & 0.303 \\
+ 200 &      0.399 &   0.343 & 0.341 \\
+ 300 &      0.336 &   0.308 & 0.309 \\
+ 400 &      0.283 &   0.285 & 0.280 \\
+ 500 &      0.348 &   0.335 & 0.337 \\
+ 600 &      0.347 &   0.339 & 0.342 \\
+ 700 &      0.292 &   0.294 & 0.292 \\
+ 800 &      0.371 &   0.350 & 0.355 \\
+ 900 &      0.367 &   0.362 & 0.362 \\
+1000 &      0.340 &   0.328 & 0.332 \\
+1100 &      0.345 &   0.336 & 0.338 \\
+1200 &      0.376 &   0.350 & 0.359 \\
+1300 &      0.384 &   0.353 & 0.362 \\
+1400 &      0.322 &   0.316 & 0.319 \\
+1500 &      0.328 &   0.323 & 0.324 \\
+1600 &      0.340 &   0.326 & 0.328 \\
+1700 &      0.351 &   0.327 & 0.332 \\
+1800 &      0.353 &   0.325 & 0.328 \\
+1883 &      0.372 &   0.335 & 0.340 \\
+\bottomrule
+\end{tabular}
+\caption{All iteration results for TfidfDT}
+\label{tab:TfidfDT}
+}
+\end{table}
+
+\begin{center}
+    \textbf{Linear Support Vector Classification}
+\end{center}
+\begin{table}[H]
+\parbox{.45\linewidth}{
+\centering
+\begin{tabular}{lrrr}
+\toprule
+size &  precision &  recall &    f1 \\
+\midrule
+ 100 &      0.355 &   0.327 & 0.326 \\
+ 200 &      0.293 &   0.295 & 0.291 \\
+ 300 &      0.388 &   0.350 & 0.355 \\
+ 400 &      0.431 &   0.352 & 0.359 \\
+ 500 &      0.436 &   0.371 & 0.383 \\
+ 600 &      0.387 &   0.367 & 0.368 \\
+ 700 &      0.455 &   0.388 & 0.404 \\
+ 800 &      0.433 &   0.388 & 0.398 \\
+ 900 &      0.403 &   0.353 & 0.362 \\
+1000 &      0.418 &   0.354 & 0.364 \\
+1100 &      0.465 &   0.380 & 0.397 \\
+1200 &      0.450 &   0.367 & 0.381 \\
+1300 &      0.454 &   0.372 & 0.387 \\
+1400 &      0.430 &   0.387 & 0.395 \\
+1500 &      0.513 &   0.398 & 0.419 \\
+1600 &      0.472 &   0.397 & 0.414 \\
+1700 &      0.465 &   0.388 & 0.406 \\
+1800 &      0.475 &   0.389 & 0.407 \\
+1883 &      0.471 &   0.387 & 0.404 \\
+\bottomrule
+\end{tabular}
+\caption{All iteration results for CountLSVC}
+\label{tab:CountLSVC}
+}
+\hfill\parbox{.45\linewidth}{
+\centering
+\begin{tabular}{lrrr}
+\toprule
+size &  precision &  recall &    f1 \\
+\midrule
+ 100 &      0.475 &   0.307 & 0.294 \\
+ 200 &      0.491 &   0.285 & 0.263 \\
+ 300 &      0.430 &   0.271 & 0.236 \\
+ 400 &      0.568 &   0.311 & 0.295 \\
+ 500 &      0.659 &   0.299 & 0.284 \\
+ 600 &      0.436 &   0.302 & 0.288 \\
+ 700 &      0.596 &   0.326 & 0.329 \\
+ 800 &      0.544 &   0.326 & 0.325 \\
+ 900 &      0.576 &   0.345 & 0.355 \\
+1000 &      0.573 &   0.335 & 0.344 \\
+1100 &      0.594 &   0.345 & 0.356 \\
+1200 &      0.580 &   0.344 & 0.358 \\
+1300 &      0.617 &   0.346 & 0.359 \\
+1400 &      0.597 &   0.349 & 0.358 \\
+1500 &      0.467 &   0.338 & 0.341 \\
+1600 &      0.603 &   0.348 & 0.361 \\
+1700 &      0.572 &   0.328 & 0.335 \\
+1800 &      0.593 &   0.337 & 0.346 \\
+1883 &      0.576 &   0.328 & 0.334 \\
+\bottomrule
+\end{tabular}
+\caption{All iteration results for TfidfLSVC}
+\label{tab:TfidfLSVC}
+}
+\end{table}
+
+\begin{center}
+    \textbf{Random Forest}
+\end{center}
+\begin{table}[H]
+\parbox{.45\linewidth}{
+\centering
+\begin{tabular}{lrrr}
+\toprule
+size &  precision &  recall &    f1 \\
+\midrule
+ 100 &      0.497 &   0.322 & 0.314 \\
+ 200 &      0.433 &   0.340 & 0.343 \\
+ 300 &      0.488 &   0.356 & 0.370 \\
+ 400 &      0.462 &   0.328 & 0.330 \\
+ 500 &      0.374 &   0.315 & 0.305 \\
+ 600 &      0.523 &   0.337 & 0.344 \\
+ 700 &      0.607 &   0.339 & 0.354 \\
+ 800 &      0.476 &   0.346 & 0.356 \\
+ 900 &      0.399 &   0.321 & 0.317 \\
+1000 &      0.353 &   0.309 & 0.291 \\
+1100 &      0.524 &   0.335 & 0.343 \\
+1200 &      0.660 &   0.337 & 0.346 \\
+1300 &      0.432 &   0.339 & 0.343 \\
+1400 &      0.473 &   0.336 & 0.338 \\
+1500 &      0.534 &   0.339 & 0.348 \\
+1600 &      0.521 &   0.328 & 0.333 \\
+1700 &      0.652 &   0.316 & 0.313 \\
+1800 &      0.594 &   0.327 & 0.334 \\
+1883 &      0.476 &   0.322 & 0.319 \\
+\bottomrule
+\end{tabular}
+\caption{All iteration results for CountRF}
+\label{tab:CountRF}
+}
+\hfill\parbox{.45\linewidth}{
+\centering
+\begin{tabular}{lrrr}
+\toprule
+size &  precision &  recall &    f1 \\
+\midrule
+ 100 &      0.188 &   0.256 & 0.210 \\
+ 200 &      0.543 &   0.288 & 0.265 \\
+ 300 &      0.461 &   0.295 & 0.280 \\
+ 400 &      0.420 &   0.323 & 0.327 \\
+ 500 &      0.421 &   0.340 & 0.343 \\
+ 600 &      0.577 &   0.343 & 0.353 \\
+ 700 &      0.431 &   0.340 & 0.345 \\
+ 800 &      0.435 &   0.350 & 0.356 \\
+ 900 &      0.636 &   0.303 & 0.295 \\
+1000 &      0.378 &   0.290 & 0.274 \\
+1100 &      0.522 &   0.335 & 0.342 \\
+1200 &      0.529 &   0.328 & 0.334 \\
+1300 &      0.368 &   0.297 & 0.282 \\
+1400 &      0.423 &   0.318 & 0.312 \\
+1500 &      0.544 &   0.339 & 0.349 \\
+1600 &      0.392 &   0.301 & 0.292 \\
+1700 &      0.389 &   0.309 & 0.303 \\
+1800 &      0.412 &   0.297 & 0.285 \\
+1883 &      0.474 &   0.308 & 0.303 \\
+\bottomrule
+\end{tabular}
+\caption{All iteration results for TfidfRF}
+\label{tab:TfidfRF}
+}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+                ybar,
+                width=1\textwidth,
+                height=.5\textwidth,
+                legend style={at={(0.5,1)},
+                anchor=north,legend columns=-1},
+                symbolic x coords={Tfidf CNB,Count CNB,Tfidf DT,Count DT,Tfidf RF,Count RF,Tfidf LSVC,Count LSVC},
+                xticklabel style={text width=1cm,align=center},
+                xtick=data,
+            ]
+            \addplot table[x=Classifier,y=Precision]{\classifierdata};
+            \addplot table[x=Classifier,y=Recall]{\classifierdata};
+            \addplot table[x=Classifier,y=F1-score]{\classifierdata};
+            \legend{Precision, Recall, F1-score}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Metrics per classifier for all labelled emails}
+    \label{fig:classifier_metrics}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+                xlabel=Number of emails in the dataset,
+                width=1\textwidth,
+                height=.7\textwidth,
+                legend style={at={(0.5,1)},
+                anchor=north,legend columns=-1},
+                xticklabels={100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800},
+                x label style={at={(axis description cs:0.5,-0.07)},anchor=north},
+                xticklabel style={text width=1cm,align=center,rotate=90},
+                xtick=data,
+                ymax=.6
+            ]
+            \addplot table[x=Size,y=Precision]{\iterdataComplementNaiveBayesTfidf};
+            \addplot table[x=Size,y=Recall]{\iterdataComplementNaiveBayesTfidf};
+            \addplot table[x=Size,y=F1-score]{\iterdataComplementNaiveBayesTfidf};
+            \legend{Precision, Recall, F1-score}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Metrics per iteration for Complement Naive Bayes Tfidf}
+    \label{fig:iteration_metrics_ComplementNaiveBayesTfidf}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+                xlabel=Number of emails in the dataset,
+                width=1\textwidth,
+                height=.7\textwidth,
+                legend style={at={(0.5,1)},
+                anchor=north,legend columns=-1},
+                xticklabels={100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800},
+                x label style={at={(axis description cs:0.5,-0.07)},anchor=north},
+                xticklabel style={text width=1cm,align=center,rotate=90},
+                xtick=data,
+                ymax=.6
+            ]
+            \addplot table[x=Size,y=Precision]{\iterdataComplementNaiveBayesCount};
+            \addplot table[x=Size,y=Recall]{\iterdataComplementNaiveBayesCount};
+            \addplot table[x=Size,y=F1-score]{\iterdataComplementNaiveBayesCount};
+            \legend{Precision, Recall, F1-score}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Metrics per iteration for Complement Naive Bayes Count}
+    \label{fig:iteration_metrics_ComplementNaiveBayesCount}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+                xlabel=Number of emails in the dataset,
+                width=1\textwidth,
+                height=.7\textwidth,
+                legend style={at={(0.5,1)},
+                anchor=north,legend columns=-1},
+                xticklabels={100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800},
+                x label style={at={(axis description cs:0.5,-0.07)},anchor=north},
+                xticklabel style={text width=1cm,align=center,rotate=90},
+                xtick=data,
+                ymax=.6
+            ]
+            \addplot table[x=Size,y=Precision]{\iterdataDecisionTreeTfidf};
+            \addplot table[x=Size,y=Recall]{\iterdataDecisionTreeTfidf};
+            \addplot table[x=Size,y=F1-score]{\iterdataDecisionTreeTfidf};
+            \legend{Precision, Recall, F1-score}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Metrics per iteration for Decision Tree Tfidf}
+    \label{fig:iteration_metrics_DecisionTreeTfidf}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+                xlabel=Number of emails in the dataset,
+                width=1\textwidth,
+                height=.7\textwidth,
+                legend style={at={(0.5,1)},
+                anchor=north,legend columns=-1},
+                xticklabels={100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800},
+                x label style={at={(axis description cs:0.5,-0.07)},anchor=north},
+                xticklabel style={text width=1cm,align=center,rotate=90},
+                xtick=data,
+                ymax=.6
+            ]
+            \addplot table[x=Size,y=Precision]{\iterdataDecisionTreeCount};
+            \addplot table[x=Size,y=Recall]{\iterdataDecisionTreeCount};
+            \addplot table[x=Size,y=F1-score]{\iterdataDecisionTreeCount};
+            \legend{Precision, Recall, F1-score}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Metrics per iteration for Decision Tree Count}
+    \label{fig:iteration_metrics_DecisionTreeCount}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+                xlabel=Number of emails in the dataset,
+                width=1\textwidth,
+                height=.7\textwidth,
+                legend style={at={(0.5,1)},
+                anchor=north,legend columns=-1},
+                xticklabels={100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800},
+                x label style={at={(axis description cs:0.5,-0.07)},anchor=north},
+                xticklabel style={text width=1cm,align=center,rotate=90},
+                xtick=data,
+                ymax=.6
+            ]
+            \addplot table[x=Size,y=Precision]{\iterdataRandomForestTfidf};
+            \addplot table[x=Size,y=Recall]{\iterdataRandomForestTfidf};
+            \addplot table[x=Size,y=F1-score]{\iterdataRandomForestTfidf};
+            \legend{Precision, Recall, F1-score}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Metrics per iteration for Random Forest Tfidf}
+    \label{fig:iteration_metrics_RandomForestTfidf}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+                xlabel=Number of emails in the dataset,
+                width=1\textwidth,
+                height=.7\textwidth,
+                legend style={at={(0.5,1)},
+                anchor=north,legend columns=-1},
+                xticklabels={100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800},
+                x label style={at={(axis description cs:0.5,-0.07)},anchor=north},
+                xticklabel style={text width=1cm,align=center,rotate=90},
+                xtick=data,
+                ymax=.6
+            ]
+            \addplot table[x=Size,y=Precision]{\iterdataRandomForestCount};
+            \addplot table[x=Size,y=Recall]{\iterdataRandomForestCount};
+            \addplot table[x=Size,y=F1-score]{\iterdataRandomForestCount};
+            \legend{Precision, Recall, F1-score}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Metrics per iteration for Random Forest Count}
+    \label{fig:iteration_metrics_RandomForestCount}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+                xlabel=Number of emails in the dataset,
+                width=1\textwidth,
+                height=.7\textwidth,
+                legend style={at={(0.5,1)},
+                anchor=north,legend columns=-1},
+                xticklabels={100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800},
+                x label style={at={(axis description cs:0.5,-0.07)},anchor=north},
+                xticklabel style={text width=1cm,align=center,rotate=90},
+                xtick=data,
+                ymax=.6
+            ]
+            \addplot table[x=Size,y=Precision]{\iterdataLinearSupportVectorClassificationTfidf};
+            \addplot table[x=Size,y=Recall]{\iterdataLinearSupportVectorClassificationTfidf};
+            \addplot table[x=Size,y=F1-score]{\iterdataLinearSupportVectorClassificationTfidf};
+            \legend{Precision, Recall, F1-score}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Metrics per iteration for Linear Support Vector Classification Tfidf}
+    \label{fig:iteration_metrics_LinearSupportVectorClassificationTfidf}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+                xlabel=Number of emails in the dataset,
+                width=1\textwidth,
+                height=.7\textwidth,
+                legend style={at={(0.5,1)},
+                anchor=north,legend columns=-1},
+                xticklabels={100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800},
+                x label style={at={(axis description cs:0.5,-0.07)},anchor=north},
+                xticklabel style={text width=1cm,align=center,rotate=90},
+                xtick=data,
+                ymax=.6
+            ]
+            \addplot table[x=Size,y=Precision]{\iterdataLinearSupportVectorClassificationCount};
+            \addplot table[x=Size,y=Recall]{\iterdataLinearSupportVectorClassificationCount};
+            \addplot table[x=Size,y=F1-score]{\iterdataLinearSupportVectorClassificationCount};
+            \legend{Precision, Recall, F1-score}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Metrics per iteration for Linear Support Vector Classification Count}
+    \label{fig:iteration_metrics_LinearSupportVectorClassificationCount}
+\end{figure}
+

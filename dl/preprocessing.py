@@ -2,8 +2,10 @@ import os
 import re
 
 import nltk
+import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
+from gensim.models import Word2Vec
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
@@ -20,10 +22,7 @@ reply_patterns = [
         "at \\d+:\\d+ (AM|PM),? .+ wrote:"
     ),
     re.compile("On \\d+/\\d+/\\d+ \\d+:\\d+, .+ wrote:"),
-
     re.compile(r"On \\d+/\\d+/\\d+ \\d+:\\d+:\\d+ .+ wrote:"),
-    # On 2022/04/06 17:21:52 Dinesh Joshi wrote:
-
     re.compile(".+ hat am \\d+\\.\\d+\\.\\d+ \\d+:\\d+ geschrieben:"),
     re.compile("From:[\\S\\s]*Date:[\\S\\s]*To:[\\S\\s]*Subject:", re.MULTILINE),
 ]
@@ -67,11 +66,33 @@ def lemmatize_sentence(sentence: str) -> str:
     return ' '.join(lemmatized_words)
 
 
+def split_dataset(dataframe: pd.DataFrame):
+    """
+    Split the dataset into 10 subsets, each having the same percentage of architectural/not-ak labels.
+    """
+    not_ak = dataframe[dataframe["TAGS"] == ["not-ak"]]
+
+
+def w2v(dataframe: pd.DataFrame):
+    model = Word2Vec(sentences=dataframe['CONTENT'].tolist(), window=5, min_count=1, workers=4)
+    dataframe['CONTENT'].apply(lambda x: model.wv[x.split()].mean(axis=0))
+
+
+# TODO: how to deal with tokens that are not in the model
+def sentence_vector(sentence: str, model):
+    words = sentence.split()
+    vectors = [model.wv[word] for word in words if word in model.wv.key_to_index]
+    if len(vectors) > 0:
+        return np.mean(vectors, axis=0)
+    else:
+        return np.zeros(model.vector_size)
+
+
 def preprocess(raw: pd.DataFrame) -> pd.DataFrame:
     """
     Preprocess the dataset by
-    :param raw:
-    :return:
+    :param raw: raw dataset
+    :return: preprocessed dataset
     """
     # get only the columns needed for training
     ret = raw[["SUBJECT", "BODY", "TAGS"]]
@@ -90,6 +111,10 @@ def preprocess(raw: pd.DataFrame) -> pd.DataFrame:
     ret["CONTENT"] = ret["CONTENT"].transform(
         lambda x: lemmatize_sentence(x)
     )
+
+    # word embedding
+    model = Word2Vec(sentences=ret['CONTENT'].tolist(), window=5, min_count=1, workers=4)
+    ret["CONTENT"] = ret["CONTENT"].apply(lambda x: sentence_vector(x, model))
 
     return ret[["CONTENT", "TAGS"]]
 

@@ -6,7 +6,9 @@ import numpy as np
 import pandas
 import pandas as pd
 from bs4 import BeautifulSoup
-from gensim.models import Word2Vec
+from gensim.models import KeyedVectors
+from matplotlib import pyplot as plt
+from nltk import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
@@ -28,7 +30,7 @@ class PreProcessor:
                 "at \\d+:\\d+ (AM|PM),? .+ wrote:"
             ),
             re.compile("On \\d+/\\d+/\\d+ \\d+:\\d+, .+ wrote:"),
-            re.compile(r"On \\d+/\\d+/\\d+ \\d+:\\d+:\\d+ .+ wrote:"),
+            re.compile("On \\d+/\\d+/\\d+ \\d+:\\d+:\\d+ .+ wrote:"),
             re.compile(".+ hat am \\d+\\.\\d+\\.\\d+ \\d+:\\d+ geschrieben:"),
             re.compile("From:[\\S\\s]*Date:[\\S\\s]*To:[\\S\\s]*Subject:", re.MULTILINE),
         ]
@@ -68,24 +70,21 @@ class PreProcessor:
         lemmatized_words = [WordNetLemmatizer().lemmatize(word) for word in words]
         return ' '.join(lemmatized_words)
 
-    def w2v(self, dataframe: pd.DataFrame):
-        model = Word2Vec(sentences=dataframe['CONTENT'].tolist(), window=5, min_count=1, workers=4)
-        dataframe['CONTENT'].apply(lambda x: model.wv[x.split()].mean(axis=0))
-
-    # TODO: how to deal with tokens that are not in the model
     def sentence_vector(self, sentence: str, model):
         words = sentence.split()
-        vectors = [model.wv[word] for word in words if word in model.wv.key_to_index]
-        if len(vectors) > 0:
-            return np.mean(vectors, axis=0)
+        vectors = [model[word] for word in words if word in model.key_to_index]
+        if (length := len(vectors)) <= 300:
+            return vectors + [np.zeros(200) for _ in range(300 - length)]
         else:
-            return np.zeros(model.vector_size)
+            return vectors[:300]
 
-    def remove_labels(self, labels) -> str:
-        labels = [label for label in labels if label in self.relevant_labels]
-        return ', '.join(labels)
+    def remove_labels(self, labels: list) -> str:
+        filtered = [label for label in labels if label in self.relevant_labels]
+        if 'not-ak' in filtered and len(filtered) > 1: # This was the case for some reason
+            return ''
+        return ', '.join(filtered)
 
-    def preprocess(self):
+    def pre_process(self):
         """
         Preprocess the dataset by
         :return: preprocessed dataset
@@ -93,10 +92,13 @@ class PreProcessor:
         # get only the columns needed for training
         self.df = self.df[["SUBJECT", "BODY", "TAGS"]]
 
+        # need all emails to train word embedding
+        emails = df['BODY'].copy()
+
         # remove unnecessary labels
         self.df['TAGS'] = self.df['TAGS'].str.strip('[]')
         self.df["TAGS"] = self.df["TAGS"].transform(
-            lambda x: self.remove_labels(x.split(','))
+            lambda x: self.remove_labels(x.split(', '))
         )
 
         # remove entries that have empty tags
@@ -120,10 +122,27 @@ class PreProcessor:
         )
 
         # word embedding
-        model = Word2Vec(sentences=self.df['CONTENT'].tolist(), window=5, min_count=1, workers=4)
-        self.df["CONTENT"] = self.df["CONTENT"].apply(lambda x: self.sentence_vector(x, model))
+        tokenized_sentences = [word_tokenize(sentence) for sentence in emails.tolist()]
+        # model = Word2Vec(sentences=tokenized_sentences, window=5, min_count=2, workers=4, epochs=50)
+        word_vect = KeyedVectors.load_word2vec_format("SO_vectors_200.bin", binary=True)
+        self.df["CONTENT"] = self.df["CONTENT"].apply(lambda x: self.sentence_vector(x, word_vect))
 
         self.df = self.df[["CONTENT", "TAGS"]]
+
+    def plot_email_word_counts(self):
+        length_ranges = [x * 100 for x in range(60)]
+        self.df['email_length'] = self.df['CONTENT'].apply(lambda x: len(x))
+        self.df['length_range'] = pd.cut(self.df['email_length'], bins=length_ranges)
+        email_count = self.df['length_range'].value_counts().sort_index()
+
+        plt.bar(email_count.index.astype(str), email_count.values)
+        plt.xlabel('Length Range')
+        plt.ylabel('Number of Emails')
+        plt.title('Email Count in Length Ranges')
+        plt.xticks(rotation=45)
+        plt.show()
+
+        self.df = self.df.drop(['email_length', 'length_range'], axis=1)
 
     def export_to_json(self):
         self.df.to_json(os.path.join(os.getcwd(), "../data/preprocessed.json"), index=True, orient='index', indent=4)
@@ -132,5 +151,5 @@ class PreProcessor:
 if __name__ == "__main__":
     df = pd.read_csv("../data/input.csv")
     pre_processor = PreProcessor(df)
-    pre_processor.preprocess()
+    pre_processor.pre_process()
     pre_processor.export_to_json()

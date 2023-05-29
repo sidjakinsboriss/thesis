@@ -9,9 +9,9 @@ from dl.rnn import EmailRNN
 
 
 def train(model, train_loader, valid_loader, test_loader, criterion, optimizer, num_epochs):
-    model.train()
     best_valid_loss = float('inf')
     for epoch in range(num_epochs):
+        model.train()
         for inputs, labels in train_loader:
             optimizer.zero_grad()
             outputs = model(inputs)
@@ -76,8 +76,6 @@ if __name__ == "__main__":
     dataset_split_handler.encode_labels()
     dataset_split_handler.split_dataset()
 
-    train_loader, val_loader, test_loader = dataset_split_handler.get_data_loaders()
-
     # hyper-parameters
     num_epochs = 50
     learning_rate = 0.001
@@ -92,4 +90,5 @@ if __name__ == "__main__":
     criterion = torch.nn.MSELoss()  # mean-squared error for regression
     optimizer = torch.optim.Adam(rnn.parameters(), lr=learning_rate)
 
-    train(rnn, train_loader, val_loader, test_loader, criterion, optimizer, num_epochs)
+    for train_loader, val_loader, test_loader in dataset_split_handler.get_data_loaders():
+        train(rnn, train_loader, val_loader, test_loader, criterion, optimizer, num_epochs)

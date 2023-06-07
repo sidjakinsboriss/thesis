@@ -3,11 +3,6 @@ import os
 import re
 from collections import Counter
 
-from text_preprocessing import preprocess_text
-from text_preprocessing import to_lower, remove_email, remove_url, remove_punctuation, lemmatize_word, \
-    remove_phone_number, remove_itemized_bullet_and_numbering, expand_contraction, remove_special_character, \
-    remove_whitespace, normalize_unicode, remove_stopword, remove_name
-
 import nltk
 import numpy as np
 import pandas
@@ -17,6 +12,8 @@ from gensim.models import KeyedVectors
 from matplotlib import pyplot as plt
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
+from text_preprocessing import expand_contraction, remove_whitespace, normalize_unicode
+from text_preprocessing import preprocess_text
 
 
 class PreProcessor:
@@ -81,10 +78,10 @@ class PreProcessor:
     def sentence_vector(self, sentence: str, model):
         words = nltk.word_tokenize(sentence)
         vectors = [model[word] for word in words if word in model.key_to_index]
-        if (length := len(vectors)) <= 300:
-            return vectors + [np.zeros(200) for _ in range(300 - length)]
+        if (length := len(vectors)) <= 100:
+            return vectors + [np.zeros(200) for _ in range(100 - length)]
         else:
-            return vectors[:300]
+            return vectors[:100]
 
     def remove_labels(self, labels: list) -> str:
         filtered = [label for label in labels if label in self.relevant_labels]
@@ -98,11 +95,11 @@ class PreProcessor:
         :return: preprocessed dataset
         """
         # get only the columns needed for training
-        self.df = self.df[["SUBJECT", "BODY", "TAGS"]]
+        self.df = self.df[['SUBJECT', 'BODY', 'TAGS']]
 
         # remove unnecessary labels
         self.df['TAGS'] = self.df['TAGS'].str.strip('[]')
-        self.df["TAGS"] = self.df["TAGS"].transform(
+        self.df['TAGS'] = self.df['TAGS'].transform(
             lambda x: self.remove_labels(x.split(', '))
         )
 
@@ -110,46 +107,54 @@ class PreProcessor:
         self.df = self.df[~(self.df['TAGS'] == "")]
 
         # parse HTML to plain_text and remove embedded threads
-        self.df["CONTENT"] = self.df["BODY"].transform(
+        self.df['CONTENT'] = self.df['BODY'].transform(
             lambda x: self.remove_embedded(BeautifulSoup(x, features="html.parser").get_text())
         )
 
-        processing_function_list = [to_lower,
-                                    remove_url,
-                                    remove_email,
-                                    remove_phone_number,
-                                    remove_itemized_bullet_and_numbering,
-                                    expand_contraction,
-                                    remove_special_character,
-                                    remove_punctuation,
-                                    remove_whitespace,
-                                    normalize_unicode,
-                                    remove_stopword,
-                                    lemmatize_word]
+        # Remove URLs
+        url_pattern = r'(https?://\S+)'
+        self.df['CONTENT'] = self.df['CONTENT'].str.replace(url_pattern, 'url', regex=True)
 
-        self.df["CONTENT"] = self.df["CONTENT"].transform(
+        # to lower case
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
+            lambda x: x.lower()
+        )
+
+        # Replace class paths
+        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'.*(org\.|java\.|com\.).*', 'class', regex=True)
+
+        processing_function_list = [
+            normalize_unicode,
+            expand_contraction]
+
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
             lambda x: preprocess_text(x, processing_function_list)
         )
 
-        # # Remove URLs
-        # url_pattern = r'(https?://\S+)'
-        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(url_pattern, '', regex=True)
-        #
-        # # remove stop words
-        # self.df["CONTENT"] = self.df["CONTENT"].transform(
-        #     lambda x: self.remove_stop_words(x)
-        # )
-        #
-        # # lemmatization
-        # self.df["CONTENT"] = self.df["CONTENT"].transform(
-        #     lambda x: self.lemmatize_sentence(x)
-        # )
-        #
-        # # to lower case
-        # self.df["CONTENT"] = self.df["CONTENT"].transform(
-        #     lambda x: x.lower()
-        # )
-        #
+        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'[^a-zA-Z0-9\s]', ' ',
+                                                            regex=True)  # replace special characters
+
+        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\d+', '', regex=True)  # replace digits
+
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
+            lambda x: remove_whitespace(x)
+        )
+
+        # remove stop words
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
+            lambda x: self.remove_stop_words(x)
+        )
+
+        # lemmatization
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
+            lambda x: self.lemmatize_sentence(x)
+        )
+
+        # Only leave single-labeled entries
+
+        condition = self.df['CONTENT'] == ''
+        self.df = self.df[~condition]
+
         self.df = self.df[["CONTENT", "TAGS"]]
 
     def word_embedding(self):
@@ -204,6 +209,6 @@ if __name__ == "__main__":
     pre_processor = PreProcessor(df)
     pre_processor.pre_process()
     # pre_processor.show_words_absent_from_word_embedding()
-    # pre_processor.count_word_occurrences()
-    pre_processor.word_embedding()
+    pre_processor.plot_email_word_counts()
+    # pre_processor.word_embedding()
     pre_processor.export_to_json()

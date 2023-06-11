@@ -50,10 +50,10 @@ class TextDataset(Dataset):
         indices = torch.tensor([idx if idx is not None else 0 for idx in indices], dtype=torch.int32)
 
         label = self.labels[idx]
-        return {'indices': indices[:100], 'label': label}
+        return {'indices': indices[:200], 'label': label}
 
 
-class DatasetSplitHandler:
+class DatasetHandler:
     def __init__(self, df: pandas.DataFrame):
         self.df = df
         self.mlb = MultiLabelBinarizer()
@@ -68,24 +68,33 @@ class DatasetSplitHandler:
         self.tag_val = None
 
     def split_dataset(self):
-        # Ignore combination of labels that occur less than 10 times
-        # label_counts = self.df['TAGS'].value_counts()
-        # selected_labels = label_counts[label_counts >= 10].index
-        # subset_df = self.df[self.df['TAGS'].isin(selected_labels)]
-
+        """
+        Splits the dataset into 10 subsets stratified by tags
+        """
         X = np.zeros(len(self.df))
         y = self.df.iloc[:, 2:]
 
         n_splits = 10
         skf = MultilabelStratifiedKFold(n_splits=n_splits, random_state=42, shuffle=True)
 
-        # Perform stratified K-Fold splitting
         for i, (_, test_index) in enumerate(skf.split(X, y)):
             self.indices.append(test_index)
 
+    def are_unique_splits(self):
+        """
+        Check if MultilabelStratifiedKFold results in non-overlapping splits of the dataset
+        """
+        splits = self.indices
+        for i in range(len(splits)):
+            for j in range(i + 1, len(splits)):
+                intersection = set(splits[i]) & set(splits[j])
+                if len(intersection) > 0:
+                    return False
+        return True
+
     def encode_labels(self):
         """
-        Encode tags into series of 0s and 1s
+        Multi-hot encoding of labels
         """
         self.df['TAGS'] = self.df['TAGS'].str.split(', ')
         encoded = self.mlb.fit_transform(self.df['TAGS'])
@@ -118,6 +127,39 @@ class DatasetSplitHandler:
 
         plt.show()
 
+    def get_balanced_training_dataset(self, train_indices) -> TextDataset:
+        tag_train = self.df[self.mlb.classes_].iloc[train_indices]
+        tags = self.df[self.mlb.classes_]
+
+        counts = []
+        class_counts = [0 for _ in range(5)]
+
+        for col in self.mlb.classes_:
+            positive_samples = tag_train[tag_train[col] == 1].shape[0]
+            counts.append(positive_samples)
+
+        min_count = min(counts)
+
+        included_indices = []
+
+        for idx in train_indices:
+            tag = tags.iloc[idx].tolist()
+            pos_indices = [i for i in range(len(tag)) if tag[i] == 1]
+
+            include_idx = True
+            for i in pos_indices:
+                include_idx = include_idx and class_counts[i] < min_count
+
+            if include_idx:
+                included_indices.append(idx)
+                for i in pos_indices:
+                    class_counts[i] += 1
+
+        email_train = self.df['CONTENT'].iloc[included_indices]
+        tag_train = self.df[self.mlb.classes_].iloc[included_indices]
+
+        return TextDataset(list(email_train), torch.Tensor(tag_train.values))
+
     def get_data_loaders(self):
         """
         Yields data loaders for training, testing, and validation sets.
@@ -143,11 +185,12 @@ class DatasetSplitHandler:
             val_tags = torch.Tensor(tag_val.values)
             test_tags = torch.Tensor(tag_test.values)
 
-            train_dataset = TextDataset(list(email_train), train_tags)
+            # train_dataset = TextDataset(list(email_train), train_tags)
+            train_dataset = self.get_balanced_training_dataset(train_indices)
             val_dataset = TextDataset(list(email_val), val_tags)
             test_dataset = TextDataset(list(email_test), test_tags)
 
-            train_loader = DataLoader(train_dataset, batch_size=64, collate_fn=PadSequence())
+            train_loader = DataLoader(train_dataset, batch_size=32, collate_fn=PadSequence())
             val_loader = DataLoader(val_dataset, batch_size=128, collate_fn=PadSequence())
             test_loader = DataLoader(test_dataset, batch_size=128, collate_fn=PadSequence())
 

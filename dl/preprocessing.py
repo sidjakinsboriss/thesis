@@ -64,7 +64,8 @@ class PreProcessor:
 
         return raw
 
-    def remove_stop_words(self, sentence: str) -> str:
+    @staticmethod
+    def remove_stop_words(sentence: str) -> str:
         stop_words = set(stopwords.words('english'))
         words = nltk.word_tokenize(sentence)
         filtered_words = [word for word in words if not word.lower() in stop_words]
@@ -104,7 +105,7 @@ class PreProcessor:
         )
 
         # remove entries that have empty tags
-        self.df = self.df[~(self.df['TAGS'] == "")]
+        self.df = self.df[~(self.df['TAGS'] == '')]
 
         # parse HTML to plain_text and remove embedded threads
         self.df['CONTENT'] = self.df['BODY'].transform(
@@ -149,8 +150,6 @@ class PreProcessor:
         self.df['CONTENT'] = self.df['CONTENT'].transform(
             lambda x: self.lemmatize_sentence(x)
         )
-
-        # Only leave single-labeled entries
 
         condition = self.df['CONTENT'] == ''
         self.df = self.df[~condition]

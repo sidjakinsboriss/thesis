@@ -1,3 +1,4 @@
+import random
 from collections import Counter
 
 import numpy as np
@@ -12,54 +13,49 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 
-wv = KeyedVectors.load_word2vec_format("SO_vectors_200.bin", binary=True)
-padding_token = '<pad>'
-padding_vector = np.zeros(wv.vector_size)
-
-vocab_size = len(wv.key_to_index) + 1
-new_vectors = np.zeros((vocab_size, wv.vector_size))
-new_vectors[0] = padding_vector
-new_vectors[1:] = wv.vectors
-
-new_wv = KeyedVectors(wv.vector_size)
-new_wv.add_vectors([padding_token] + wv.index_to_key, new_vectors)
-
 
 class PadSequence:
     def __call__(self, batch):
         data = [item['indices'] for item in batch]
         labels = torch.stack([item['label'] for item in batch])
 
-        # Pad the sequences
-        padded_data = pad_sequence(data, batch_first=True)
+        # Post-padding
+        # padded_data = pad_sequence(data, batch_first=True)
 
-        return padded_data, labels
+        # Pre-padding
+        reversed = [torch.flip(item, dims=(0,)) for item in data]
+        padded_data = pad_sequence(reversed, batch_first=True)
+        padded_pre = torch.flip(padded_data, dims=(1,))
+
+        return padded_pre, labels
 
 
 class TextDataset(Dataset):
-    def __init__(self, texts, labels):
+    def __init__(self, texts, labels, word_embeddings):
         self.texts = texts
         self.labels = labels
+        self.word_embeddings = word_embeddings
 
     def __len__(self):
         return len(self.texts)
 
     def __getitem__(self, idx):
         text = self.texts[idx]
-        indices = [new_wv.key_to_index.get(word) for word in word_tokenize(text)]
+        indices = [self.word_embeddings.key_to_index.get(word) for word in word_tokenize(text) if
+                   word in self.word_embeddings.key_to_index]
         indices = torch.tensor([idx if idx is not None else 0 for idx in indices], dtype=torch.int32)
 
         label = self.labels[idx]
-        return {'indices': indices[:200], 'label': label}
+        return {'indices': indices[:100], 'label': label}
 
 
 class DatasetHandler:
-    def __init__(self, df: pandas.DataFrame):
+    def __init__(self, df: pandas.DataFrame, word_embeddings: KeyedVectors):
         self.df = df
         self.mlb = MultiLabelBinarizer()
         self.tag_distribution = df['TAGS'].value_counts(normalize=True)
         self.indices = []
-        self.weights = torch.FloatTensor(new_wv.vectors)
+        self.word_embeddings = word_embeddings
         self.email_train = None
         self.email_test = None
         self.email_val = None
@@ -127,6 +123,36 @@ class DatasetHandler:
 
         plt.show()
 
+    def remove_not_ak_tags(self, train_indices) -> TextDataset:
+        tag_train = self.df[self.mlb.classes_].iloc[train_indices]
+        tags = self.df[self.mlb.classes_]
+
+        counts = []
+
+        for col in self.mlb.classes_:
+            positive_samples = tag_train[tag_train[col] == 1].shape[0]
+            counts.append(positive_samples)
+
+        min_count = min(counts)
+
+        not_ak_indices = []
+        ak_indices = []
+
+        for idx in train_indices:
+            if tags.iloc[idx].tolist() == [0, 1, 0, 0, 0]:
+                not_ak_indices.append(idx)
+            else:
+                ak_indices.append(idx)
+
+        not_ak_indices = not_ak_indices[:min_count]
+        train_indices = not_ak_indices + ak_indices
+        random.shuffle(train_indices)
+
+        email_train = self.df['CONTENT'].iloc[train_indices]
+        tag_train = self.df[self.mlb.classes_].iloc[train_indices]
+
+        return TextDataset(list(email_train), torch.Tensor(tag_train.values), self.word_embeddings)
+
     def get_balanced_training_dataset(self, train_indices) -> TextDataset:
         tag_train = self.df[self.mlb.classes_].iloc[train_indices]
         tags = self.df[self.mlb.classes_]
@@ -158,9 +184,9 @@ class DatasetHandler:
         email_train = self.df['CONTENT'].iloc[included_indices]
         tag_train = self.df[self.mlb.classes_].iloc[included_indices]
 
-        return TextDataset(list(email_train), torch.Tensor(tag_train.values))
+        return TextDataset(list(email_train), torch.Tensor(tag_train.values), self.word_embeddings)
 
-    def get_data_loaders(self):
+    def get_data_loaders(self, batch_size):
         """
         Yields data loaders for training, testing, and validation sets.
         """
@@ -185,13 +211,14 @@ class DatasetHandler:
             val_tags = torch.Tensor(tag_val.values)
             test_tags = torch.Tensor(tag_test.values)
 
-            # train_dataset = TextDataset(list(email_train), train_tags)
-            train_dataset = self.get_balanced_training_dataset(train_indices)
-            val_dataset = TextDataset(list(email_val), val_tags)
-            test_dataset = TextDataset(list(email_test), test_tags)
+            # train_dataset = TextDataset(list(email_train), train_tags, self.word_embeddings)
+            # train_dataset = self.get_balanced_training_dataset(train_indices)
+            train_dataset = self.remove_not_ak_tags(train_indices)
+            val_dataset = TextDataset(list(email_val), val_tags, self.word_embeddings)
+            test_dataset = TextDataset(list(email_test), test_tags, self.word_embeddings)
 
-            train_loader = DataLoader(train_dataset, batch_size=32, collate_fn=PadSequence())
-            val_loader = DataLoader(val_dataset, batch_size=128, collate_fn=PadSequence())
-            test_loader = DataLoader(test_dataset, batch_size=128, collate_fn=PadSequence())
+            train_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=PadSequence())
+            val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=PadSequence())
+            test_loader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=PadSequence())
 
             yield train_loader, val_loader, test_loader

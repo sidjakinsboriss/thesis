@@ -1,3 +1,5 @@
+import os
+import pickle
 import random
 from collections import Counter
 
@@ -5,7 +7,6 @@ import numpy as np
 import pandas
 import pandas as pd
 import torch
-from gensim.models import KeyedVectors
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from matplotlib import pyplot as plt
 from nltk import word_tokenize
@@ -23,7 +24,7 @@ class PadSequence:
         # padded_data = pad_sequence(data, batch_first=True)
 
         # Pre-padding
-        reversed = [torch.flip(item, dims=(0,)) for item in data]
+        reversed = [torch.tensor(item[::-1]) for item in data]
         padded_data = pad_sequence(reversed, batch_first=True)
         padded_pre = torch.flip(padded_data, dims=(1,))
 
@@ -31,31 +32,41 @@ class PadSequence:
 
 
 class TextDataset(Dataset):
-    def __init__(self, texts, labels, word_embeddings):
+    def __init__(self, texts, labels, word_embeddings, include_parent=False):
         self.texts = texts
         self.labels = labels
         self.word_embeddings = word_embeddings
+        self.include_parent = include_parent
 
     def __len__(self):
         return len(self.texts)
 
     def __getitem__(self, idx):
+        length = 200 if self.include_parent else 100
         text = self.texts[idx]
-        indices = [self.word_embeddings.key_to_index.get(word) for word in word_tokenize(text) if
-                   word in self.word_embeddings.key_to_index]
-        indices = torch.tensor([idx if idx is not None else 0 for idx in indices], dtype=torch.int32)
+
+        if self.include_parent:
+            parent_indices = [self.word_embeddings.get(word) for word in word_tokenize(text[0]) if
+                              word in self.word_embeddings][:100] if text[0] else []
+            email_indices = [self.word_embeddings.get(word) for word in word_tokenize(text[1]) if
+                             word in self.word_embeddings][:100]
+            indices = parent_indices + email_indices
+        else:
+            indices = [self.word_embeddings.get(word) for word in word_tokenize(text) if
+                       word in self.word_embeddings]
 
         label = self.labels[idx]
-        return {'indices': indices[:100], 'label': label}
+        return {'indices': indices[:length], 'label': label}
 
 
 class DatasetHandler:
-    def __init__(self, df: pandas.DataFrame, word_embeddings: KeyedVectors):
+    def __init__(self, df: pandas.DataFrame, word_embeddings, include_parent_email):
         self.df = df
         self.mlb = MultiLabelBinarizer()
         self.tag_distribution = df['TAGS'].value_counts(normalize=True)
         self.indices = []
         self.word_embeddings = word_embeddings
+        self.include_parent_email = include_parent_email
         self.email_train = None
         self.email_test = None
         self.email_val = None
@@ -73,8 +84,16 @@ class DatasetHandler:
         n_splits = 10
         skf = MultilabelStratifiedKFold(n_splits=n_splits, random_state=42, shuffle=True)
 
-        for i, (_, test_index) in enumerate(skf.split(X, y)):
-            self.indices.append(test_index)
+        if os.path.exists('list.pickle'):
+            with open('list.pickle', 'rb') as fp:
+                self.indices = pickle.load(fp)
+        else:
+            for i, (_, test_index) in enumerate(skf.split(X, y)):
+                self.indices.append(test_index)
+
+            # Save the splits
+            with open('list.pickle', 'wb') as fp:
+                pickle.dump(self.indices, fp)
 
     def are_unique_splits(self):
         """
@@ -181,10 +200,32 @@ class DatasetHandler:
                 for i in pos_indices:
                     class_counts[i] += 1
 
-        email_train = self.df['CONTENT'].iloc[included_indices]
+        if self.include_parent_email:
+            email_train = self.add_parent_email(included_indices)
+        else:
+            email_train = self.df['CONTENT'].iloc[included_indices]
+
         tag_train = self.df[self.mlb.classes_].iloc[included_indices]
 
-        return TextDataset(list(email_train), torch.Tensor(tag_train.values), self.word_embeddings)
+        return TextDataset(list(email_train), torch.Tensor(tag_train.values), self.word_embeddings,
+                           include_parent=self.include_parent_email)
+
+    def add_parent_email(self, train_indices) -> pandas.Series:
+        emails_with_parent_email = []
+
+        for idx in train_indices:
+            email_info = self.df[['CONTENT', 'ID', 'PARENT_ID']].iloc[idx]
+            email = email_info['CONTENT']
+            parent_email = self.df.loc[self.df['ID'] == email_info['PARENT_ID'], ['CONTENT']]
+
+            if parent_email.empty:
+                parent_email = None
+            else:
+                parent_email = parent_email.iat[0, 0]
+
+            emails_with_parent_email.append([parent_email, email])
+
+        return pandas.Series(emails_with_parent_email)
 
     def get_data_loaders(self, batch_size):
         """
@@ -204,16 +245,20 @@ class DatasetHandler:
             email_val = self.df['CONTENT'].iloc[val_indices]
             tag_val = self.df[self.mlb.classes_].iloc[val_indices]
 
-            email_train = self.df['CONTENT'].iloc[train_indices]
+            if self.include_parent_email:
+                email_train = self.add_parent_email(train_indices)
+            else:
+                email_train = self.df['CONTENT'].iloc[train_indices]
+
             tag_train = self.df[self.mlb.classes_].iloc[train_indices]
 
             train_tags = torch.Tensor(tag_train.values)
             val_tags = torch.Tensor(tag_val.values)
             test_tags = torch.Tensor(tag_test.values)
 
-            # train_dataset = TextDataset(list(email_train), train_tags, self.word_embeddings)
+            train_dataset = TextDataset(list(email_train), train_tags, self.word_embeddings, include_parent=True)
             # train_dataset = self.get_balanced_training_dataset(train_indices)
-            train_dataset = self.remove_not_ak_tags(train_indices)
+            # train_dataset = self.remove_not_ak_tags(train_indices)
             val_dataset = TextDataset(list(email_val), val_tags, self.word_embeddings)
             test_dataset = TextDataset(list(email_test), test_tags, self.word_embeddings)
 

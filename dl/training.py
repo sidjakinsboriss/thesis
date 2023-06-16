@@ -1,4 +1,9 @@
+import collections
+import json
 import os
+from collections import Counter
+import multilabel_oversampling as mo
+import DistributionBalancedLoss
 
 import numpy as np
 import pandas
@@ -7,13 +12,14 @@ import torch
 from gensim.models import Word2Vec, KeyedVectors
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator
+from sklearn.metrics import f1_score, multilabel_confusion_matrix, ConfusionMatrixDisplay
 from sklearn.utils import compute_class_weight
-from torch.nn import BCEWithLogitsLoss
+from torch.nn import BCEWithLogitsLoss, MultiLabelSoftMarginLoss
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
-from dl.dataset_split_handler import DatasetHandler
-from dl.rnn import EmailLSTM, EmailGRU
+from dl.dataset_split_handler import DatasetHandler, TextDataset
+from dl.rnn import EmailGRU, EmailLSTM
 from dl.sampler import MultilabelBalancedRandomSampler
 
 device = "cpu"
@@ -133,17 +139,19 @@ def get_word_embeddings(use_trained_weights=True) -> KeyedVectors:
 
 
 class Training:
-    def __init__(self, model, criterion, optimizer, num_epochs):
+    def __init__(self, model, criterion, optimizer, num_epochs, weights):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
         self.num_epochs = num_epochs
+        self.class_weights = weights
 
     def train(self, train_loader, val_loader):
         self.model.to(device)
         scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5)
 
         best_valid_loss = float('inf')
+        best_f_score = 0
         for epoch in range(self.num_epochs):
             self.model.train()
             train_loss = 0.0
@@ -151,6 +159,7 @@ class Training:
                 self.optimizer.zero_grad()
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, labels)
+
                 train_loss += loss.item()
                 loss.backward()
                 self.optimizer.step()
@@ -161,28 +170,43 @@ class Training:
 
             # Evaluate the model on the validation set
             self.model.eval()
+
             valid_loss = 0.0
+            predicted = []
+            ground_truth = []
+
             with torch.no_grad():
                 for inputs, labels in val_loader:
                     outputs = self.model(inputs)
                     loss = self.criterion(outputs, labels)
+
                     valid_loss += loss.item()
+
+                    # Track f-score
+                    outputs = torch.sigmoid(outputs)
+                    threshold = 0.3  # Adjust this threshold as needed
+                    outputs = torch.stack([(output > threshold).int() for output in outputs])
+                    predicted.append(outputs.cpu().numpy())
+                    ground_truth.append(labels.cpu().numpy())
+
+            predicted = np.concatenate(predicted, axis=0)
+            ground_truth = np.concatenate(ground_truth, axis=0)
+            f_score_weighted = f1_score(ground_truth, predicted, average='weighted')
 
             valid_loss /= len(val_loader)
             # Check if the current validation loss is the best so far
-            if valid_loss < best_valid_loss:
-                best_valid_loss = valid_loss
+            if f_score_weighted > best_f_score:
+                best_f_score = f_score_weighted
                 # Save the model or perform other actions as needed
-                torch.save(self.model.state_dict(), os.path.join(os.getcwd(), "models/lstm.pth"))
+                torch.save(self.model.state_dict(), os.path.join(os.getcwd(), 'models/lstm.pth'))
 
             # Print the current epoch and validation loss
-            print(f"Epoch {epoch + 1}/{num_epochs}: Train Loss = {train_loss:.4f}, Validation Loss = {valid_loss:.4f}")
-
-        # After training, evaluate the final model on the testing set
-        # self.evaluate(test_loader)
+            print(
+                f'Epoch {epoch + 1}/{num_epochs}: Train Loss = {train_loss:.4f}, Validation Loss = {valid_loss:.4f}, '
+                f'F-Score = {f_score_weighted: .4f}')
 
     def evaluate(self, test_loader):
-        self.model.load_state_dict(torch.load(os.path.join(os.getcwd(), "models/lstm.pth")))
+        self.model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'models/lstm.pth')))
         self.model.eval()
 
         predicted = []
@@ -198,7 +222,7 @@ class Training:
 
                 outputs = torch.sigmoid(outputs)
 
-                threshold = 0.3  # Adjust this threshold as needed
+                threshold = 0.5  # Adjust this threshold as needed
 
                 outputs = torch.stack([(output > threshold).int() for output in outputs])
 
@@ -208,26 +232,20 @@ class Training:
         predicted = np.concatenate(predicted, axis=0)
         ground_truth = np.concatenate(ground_truth, axis=0)
 
+        # Calculate F-score
+        f1 = f1_score(ground_truth, predicted, average=None)
+        f_score_micro = f1_score(ground_truth, predicted, average='micro')
+        f_score_macro = f1_score(ground_truth, predicted, average='macro')
+        f_score_weighted = f1_score(ground_truth, predicted, average='weighted')
+
+        print(f'F1 score per class: {f1}')
+        print(f'F1 score micro: {f_score_micro}')
+        print(f'F1 score macro: {f_score_macro}')
+        print(f'F1 score weighted: {f_score_weighted}')
+
         loss /= len(train_loader)
 
         return ground_truth, predicted, loss
-
-        # draw_matrix(ground_truth, predicted)
-
-        # Calculate precision, accuracy, and recall
-        # precision = precision_score(ground_truth, predicted, average='micro')
-        # accuracy = accuracy_score(ground_truth, predicted)
-        # recall = recall_score(ground_truth, predicted, average='micro')
-
-        # f1 = f1_score(ground_truth, predicted, average=None)
-        # f_score_micro = f1_score(ground_truth, predicted, average='micro')
-        # f_score_macro = f1_score(ground_truth, predicted, average='macro')
-        # f_score_weighted = f1_score(ground_truth, predicted, average='weighted')
-        #
-        # print(f'F1 score per class: {f1}')
-        # print(f'F1 score micro: {f_score_micro}')
-        # print(f'F1 score macro: {f_score_macro}')
-        # print(f'F1 score weighted: {f_score_weighted}')
 
 
 def plot_tag_distribution(df: pd.DataFrame):
@@ -242,8 +260,8 @@ def plot_tag_distribution(df: pd.DataFrame):
     plt.show()
 
 
-def plot_train_dataset_tags(train_loader: DataLoader):
-    labels = train_loader.dataset.labels
+def plot_dataset_tags(dataset: TextDataset):
+    labels = dataset.labels
     label_frequencies = torch.sum(labels, dim=0)
 
     label_indices = np.arange(5)
@@ -256,8 +274,43 @@ def plot_train_dataset_tags(train_loader: DataLoader):
     plt.show()
 
 
-def create_train_loader(train_loader: DataLoader) -> DataLoader:
-    sampler = MultilabelBalancedRandomSampler(train_loader.dataset.labels)
+def plot_dataset_tag_combination_counts(dataset: TextDataset):
+    tags = ['existence', 'not-ak', 'process', 'property', 'technology']
+
+    # Count unique label combinations
+    label_counts = collections.defaultdict(int)
+    for i in range(len(dataset)):
+        label = dataset.labels[i]
+        label = ', '.join([tags[i] for i in range(5) if label[i] == 1])
+        label_counts[label] += 1
+
+    # Plot the counts
+    labels, counts = zip(*label_counts.items())
+    x = range(len(labels))
+    plt.bar(x, counts, tick_label=labels)
+    plt.xticks(rotation=90)
+    plt.xlabel("Label combinations")
+    plt.ylabel("Counts")
+    plt.show()
+
+
+def create_train_loader(dataset) -> DataLoader:
+    # sampler = MultilabelBalancedRandomSampler(train_loader.dataset.labels)
+
+    dataset = train_loader.dataset
+    tags = ['existence', 'not-ak', 'process', 'property', 'technology']
+
+    # Count unique label combinations
+    label_counts = collections.defaultdict(int)
+    for i in range(len(dataset)):
+        label = dataset.labels[i]
+        label = ', '.join([tags[i] for i in range(5) if label[i] == 1])
+        label_counts[label] += 1
+
+    weights = [1 / label_counts[', '.join([tags[i] for i in range(5) if label[i] == 1])] for label in dataset.labels]
+    weights = torch.FloatTensor(weights)
+
+    sampler = WeightedRandomSampler(weights, len(dataset))
 
     return DataLoader(dataset=train_loader.dataset,
                       batch_size=16,
@@ -286,47 +339,58 @@ def get_class_weights(train_loader: DataLoader) -> torch.Tensor:
     return weights
 
 
+def draw_class_confusion_matrices(predicted, ground_truth):
+    mcm = multilabel_confusion_matrix(predicted, ground_truth)
+
+    # Define the display labels for your problem
+    display_labels = ['existence', 'not-ak', 'process', 'property', 'technology']
+
+    # Loop through the confusion matrices and plot them
+    for i, cm in enumerate(mcm):
+        cmd = ConfusionMatrixDisplay(cm, display_labels=[f'Not {display_labels[i]}', display_labels[i]])
+        cmd.plot()
+        cmd.ax_.set(title=f'Confusion Matrix for {display_labels[i]}', xlabel='Predicted', ylabel='Actual')
+        plt.show()
+
+
 if __name__ == "__main__":
     # data = json.load(open(os.path.join(os.getcwd(), "../data/preprocessed.json"), "r"))
     # df = pd.DataFrame.from_dict(data, orient="index")
     # df.to_csv(os.path.join(os.getcwd(), "../data/dataframe.csv"))
-    df = pd.read_csv(os.path.join(os.getcwd(), "../data/dataframe.csv"))
+    df = pd.read_csv(os.path.join(os.getcwd(), '../data/dataframe.csv'))
 
-    word_embeddings = get_word_embeddings(use_trained_weights=False)
+    word_embeddings = get_word_embeddings(use_trained_weights=True)
+    include_parent_email = False
 
-    dataset_handler = DatasetHandler(df, word_embeddings)
+    dataset_handler = DatasetHandler(df, word_embeddings.key_to_index, include_parent_email)
     dataset_handler.encode_labels()
     dataset_handler.split_dataset()
 
     # hyper-parameters
-    num_epochs = 20
+    num_epochs = 30
     learning_rate = 0.0001
-
     input_size = 200
     hidden_size = 128
     num_layers = 2
     num_classes = 5
     dropout = 0.2
-    batch_size = 16
+    batch_size = 32
 
     predicted = []
     ground_truth = []
 
     for train_loader, val_loader, test_loader in dataset_handler.get_data_loaders(batch_size):
-        torch.save(train_loader, os.path.join(os.getcwd(), "../data/training_loader.pt"))
-        torch.save(val_loader, os.path.join(os.getcwd(), "../data/val_loader.pt"))
-        torch.save(test_loader, os.path.join(os.getcwd(), "../data/test_loader.pt"))
-
         # train_loader = create_train_loader(train_loader)
-        # plot_train_dataset_tags(train_loader)
+        # plot_dataset_tags(train_loader.dataset)
         rnn = EmailLSTM(input_size, hidden_size, num_classes, num_layers, dropout,
                         torch.tensor(word_embeddings.vectors))
 
         optimizer = torch.optim.Adam(rnn.parameters(), lr=learning_rate)
-        weights = get_class_weights(train_loader)
         criterion = BCEWithLogitsLoss()
 
-        training = Training(rnn, criterion, optimizer, num_epochs)
+        weights = get_class_weights(train_loader)
+
+        training = Training(rnn, criterion, optimizer, num_epochs, weights)
 
         training.train(train_loader, val_loader)
         truth, pred, train_loss = training.evaluate(test_loader)
@@ -336,4 +400,5 @@ if __name__ == "__main__":
 
         predicted = np.concatenate(predicted, axis=0)
         ground_truth = np.concatenate(ground_truth, axis=0)
+
         draw_matrix(ground_truth, predicted)

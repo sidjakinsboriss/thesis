@@ -113,5 +113,5 @@ if __name__ == '__main__':
                      workers=4,  # Number of processors (parallelization)
                      window=5,  # Context window for words during training
                      epochs=30)
-    sims = model.wv.most_similar('python', topn=10)
+    # sims = model.wv.most_similar('python', topn=10)
     model.save("word2vec_model")

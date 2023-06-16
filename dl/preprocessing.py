@@ -96,7 +96,7 @@ class PreProcessor:
         :return: preprocessed dataset
         """
         # get only the columns needed for training
-        self.df = self.df[['SUBJECT', 'BODY', 'TAGS']]
+        self.df = self.df[['SUBJECT', 'BODY', 'TAGS', 'ID', 'PARENT_ID']]
 
         # remove unnecessary labels
         self.df['TAGS'] = self.df['TAGS'].str.strip('[]')
@@ -154,7 +154,7 @@ class PreProcessor:
         condition = self.df['CONTENT'] == ''
         self.df = self.df[~condition]
 
-        self.df = self.df[["CONTENT", "TAGS"]]
+        self.df = self.df[['CONTENT', 'TAGS', 'ID', 'PARENT_ID']]
 
     def word_embedding(self):
         # tokenized_sentences = [word_tokenize(sentence) for sentence in emails.tolist()]

@@ -6,12 +6,10 @@ import numpy as np
 import pandas
 import pandas as pd
 import torch
+from gensim.models import Word2Vec
 from matplotlib import pyplot as plt
-from sklearn.metrics import multilabel_confusion_matrix, ConfusionMatrixDisplay
-from torch.utils.data import DataLoader
-
-from dl.dataset_split_handler import TextDataset
-from dl.sampler import MultilabelBalancedRandomSampler
+from matplotlib.ticker import MaxNLocator
+from sklearn.metrics import multilabel_confusion_matrix, ConfusionMatrixDisplay, classification_report, f1_score
 
 
 def count_word_occurrences(df: pandas.DataFrame):
@@ -60,17 +58,7 @@ def get_class_weights(df: pandas.DataFrame):
     return class_weights
 
 
-def create_train_loader(train_loader) -> DataLoader:
-    sampler = MultilabelBalancedRandomSampler(train_loader.dataset.labels)
-
-    return DataLoader(dataset=train_loader.dataset,
-                      batch_size=64,
-                      sampler=sampler,
-                      collate_fn=train_loader.collate_fn,
-                      drop_last=True)
-
-
-def get_pos_weight(train_loader: DataLoader) -> torch.Tensor:
+def get_pos_weight(train_loader):
     """
     Calculates weights of positive samples for each class
     """
@@ -107,7 +95,7 @@ def plot_label_frequencies(labels):
     plt.show()
 
 
-def plot_dataset_tag_combination_counts(dataset: TextDataset):
+def plot_dataset_tag_combination_counts(dataset):
     tags = ['existence', 'not-ak', 'process', 'property', 'technology']
 
     # Count unique label combinations
@@ -126,3 +114,153 @@ def plot_dataset_tag_combination_counts(dataset: TextDataset):
     plt.ylabel("Counts")
 
     plt.savefig("test.jpg", bbox_inches='tight')
+
+
+def get_embedding_matrix(embedding_dim, word_index):
+    gensim_model = Word2Vec.load('embeddings/word2vec_model')
+    wv = gensim_model.wv
+
+    embedding_matrix = np.zeros((len(word_index) + 1, embedding_dim))
+
+    for word, i in word_index.items():
+        if word in wv:
+            embedding_matrix[i] = wv[word]
+
+    return embedding_matrix
+
+
+def draw_matrix(ground_truth: np.ndarray, predicted: np.ndarray):
+    """
+    Draws a symmetric matrix, where rows represent ground truth labels,
+    and columns represent predicted labels
+    """
+    row_names = col_names = np.array(['existence', 'not-ak', 'process', 'property', 'technology'])
+
+    row_labels = np.unique(ground_truth, axis=0)
+    column_labels = np.unique(predicted, axis=0)
+
+    for label in row_labels:
+        indices = np.where(label == 1)[0]
+        new_label = ', '.join([row_names[i] for i in indices])
+        if new_label and new_label not in row_names:
+            row_names = np.append(row_names, new_label)
+            col_names = np.append(col_names, new_label)
+
+    for label in column_labels:
+        indices = np.where(label == 1)[0]
+        new_label = ', '.join([col_names[i] for i in indices])
+        if new_label and new_label not in col_names:
+            row_names = np.append(row_names, new_label)
+            col_names = np.append(col_names, new_label)
+
+    matrix = np.zeros((len(row_names), len(col_names)))
+
+    for i, truth in enumerate(ground_truth):
+        pred = predicted[i]
+        indices = np.where(pred == 1)[0]
+
+        if indices.size != 0:
+            col_name = ', '.join([col_names[i] for i in indices])
+
+            indices = np.where(truth == 1)[0]
+            row_name = ', '.join([row_names[i] for i in indices])
+            row_index = np.where(row_names == row_name)[0][0]
+
+            if col_name:
+                col_index = np.where(col_names == col_name)[0][0]
+
+                matrix[row_index][col_index] += 1
+
+    num_rows, num_cols = matrix.shape
+    fig, ax = plt.subplots(figsize=(20, 10))
+
+    ax.set_xticks(range(len(col_names)))
+    ax.set_xticklabels(col_names, rotation=90, ha='right')
+    ax.set_yticks(range(len(row_names)))
+    ax.set_yticklabels(row_names)
+
+    # Create the heatmap
+    heatmap = ax.matshow(matrix, cmap='YlOrRd')
+    fig.colorbar(heatmap)
+
+    locator = MaxNLocator(nbins=len(col_names))
+    ax.xaxis.set_major_locator(locator)
+    locator = MaxNLocator(nbins=len(row_names))
+    ax.yaxis.set_major_locator(locator)
+
+    # Annotate the matrix values on the heatmap
+    for i in range(num_rows):
+        for j in range(num_cols):
+            ax.text(j, i, str(matrix[i, j]), va='center', ha='center')
+
+    # Save the plot
+    plt.savefig("matrix.jpg", bbox_inches='tight')
+
+
+def display_results(ground_truth, predicted):
+    print(classification_report(ground_truth, predicted))
+
+    # Calculate F-score
+    f1 = f1_score(ground_truth, predicted, average=None)
+    f_score_micro = f1_score(ground_truth, predicted, average='micro')
+    f_score_macro = f1_score(ground_truth, predicted, average='macro')
+    f_score_weighted = f1_score(ground_truth, predicted, average='weighted')
+
+    print(f'F1 score per class: {f1}')
+    print(f'F1 score micro: {f_score_micro}')
+    print(f'F1 score macro: {f_score_macro}')
+    print(f'F1 score weighted: {f_score_weighted}')
+
+
+import numpy as np
+from sklearn.utils.class_weight import compute_class_weight
+from sklearn.preprocessing import MultiLabelBinarizer
+
+
+def generate_class_weights(class_series, multi_class=True, one_hot_encoded=True):
+    """
+    Method to generate class weights given a set of multi-class or multi-label labels, both one-hot-encoded or not.
+    Some examples of different formats of class_series and their outputs are:
+      - generate_class_weights(['mango', 'lemon', 'banana', 'mango'], multi_class=True, one_hot_encoded=False)
+      {'banana': 1.3333333333333333, 'lemon': 1.3333333333333333, 'mango': 0.6666666666666666}
+      - generate_class_weights([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 0, 0]], multi_class=True, one_hot_encoded=True)
+      {0: 0.6666666666666666, 1: 1.3333333333333333, 2: 1.3333333333333333}
+      - generate_class_weights([['mango', 'lemon'], ['mango'], ['lemon', 'banana'], ['lemon']], multi_class=False, one_hot_encoded=False)
+      {'banana': 1.3333333333333333, 'lemon': 0.4444444444444444, 'mango': 0.6666666666666666}
+      - generate_class_weights([[0, 1, 1], [0, 0, 1], [1, 1, 0], [0, 1, 0]], multi_class=False, one_hot_encoded=True)
+      {0: 1.3333333333333333, 1: 0.4444444444444444, 2: 0.6666666666666666}
+    The output is a dictionary in the format { class_label: class_weight }. In case the input is one hot encoded, the class_label would be index
+    of appareance of the label when the dataset was processed.
+    In multi_class this is np.unique(class_series) and in multi-label np.unique(np.concatenate(class_series)).
+    Author: Angel Igareta (angel@igareta.com)
+    """
+    if multi_class:
+        # If class is one hot encoded, transform to categorical labels to use compute_class_weight
+        if one_hot_encoded:
+            class_series = np.argmax(class_series, axis=1)
+
+        # Compute class weights with sklearn method
+        class_labels = np.unique(class_series)
+        class_weights = compute_class_weight(class_weight='balanced', classes=class_labels, y=class_series)
+        return dict(zip(class_labels, class_weights))
+    else:
+        # It is neccessary that the multi-label values are one-hot encoded
+        mlb = None
+        if not one_hot_encoded:
+            mlb = MultiLabelBinarizer()
+            class_series = mlb.fit_transform(class_series)
+
+        n_samples = len(class_series)
+        n_classes = len(class_series[0])
+
+        # Count each class frequency
+        class_count = [0] * n_classes
+        for classes in class_series:
+            for index in range(n_classes):
+                if classes[index] != 0:
+                    class_count[index] += 1
+
+        # Compute class weights using balanced method
+        class_weights = [n_samples / (n_classes * freq) if freq > 0 else 1 for freq in class_count]
+        class_labels = range(len(class_weights)) if mlb is None else mlb.classes_
+        return dict(zip(class_labels, class_weights))

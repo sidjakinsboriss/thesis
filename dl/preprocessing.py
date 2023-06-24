@@ -113,46 +113,46 @@ class PreProcessor:
         )
 
         # Remove URLs
-        url_pattern = r'(https?://\S+)'
-        self.df['CONTENT'] = self.df['CONTENT'].str.replace(url_pattern, 'url', regex=True)
-
-        # to lower case
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
-            lambda x: x.lower()
-        )
-
-        # Replace class paths
-        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'.*(org\.|java\.|com\.).*', 'class', regex=True)
-
-        processing_function_list = [
-            normalize_unicode,
-            expand_contraction]
-
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
-            lambda x: preprocess_text(x, processing_function_list)
-        )
-
-        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'[^a-zA-Z0-9\s]', ' ',
-                                                            regex=True)  # replace special characters
-
-        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\d+', '', regex=True)  # replace digits
-
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
-            lambda x: remove_whitespace(x)
-        )
-
-        # remove stop words
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
-            lambda x: self.remove_stop_words(x)
-        )
-
-        # lemmatization
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
-            lambda x: self.lemmatize_sentence(x)
-        )
-
-        condition = self.df['CONTENT'] == ''
-        self.df = self.df[~condition]
+        # url_pattern = r'(https?://\S+)'
+        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(url_pattern, 'url', regex=True)
+        #
+        # # to lower case
+        # self.df['CONTENT'] = self.df['CONTENT'].transform(
+        #     lambda x: x.lower()
+        # )
+        #
+        # # Replace class paths
+        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'.*(org\.|java\.|com\.).*', 'class', regex=True)
+        #
+        # processing_function_list = [
+        #     normalize_unicode,
+        #     expand_contraction]
+        #
+        # self.df['CONTENT'] = self.df['CONTENT'].transform(
+        #     lambda x: preprocess_text(x, processing_function_list)
+        # )
+        #
+        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'[^a-zA-Z0-9\s]', ' ',
+        #                                                     regex=True)  # replace special characters
+        #
+        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\d+', '', regex=True)  # replace digits
+        #
+        # self.df['CONTENT'] = self.df['CONTENT'].transform(
+        #     lambda x: remove_whitespace(x)
+        # )
+        #
+        # # remove stop words
+        # self.df['CONTENT'] = self.df['CONTENT'].transform(
+        #     lambda x: self.remove_stop_words(x)
+        # )
+        #
+        # # lemmatization
+        # self.df['CONTENT'] = self.df['CONTENT'].transform(
+        #     lambda x: self.lemmatize_sentence(x)
+        # )
+        #
+        # condition = self.df['CONTENT'] == ''
+        # self.df = self.df[~condition]
 
         self.df = self.df[['CONTENT', 'TAGS', 'ID', 'PARENT_ID']]
 
@@ -177,19 +177,6 @@ class PreProcessor:
 
         self.df = self.df.drop(['email_length', 'length_range'], axis=1)
 
-    def count_word_occurrences(self):
-        text = ' '.join(self.df['CONTENT'].values)
-
-        words = text.split()
-        word_counts = Counter(words)
-        sorted_word_counts = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
-
-        word_counts_dict = {word: count for word, count in sorted_word_counts}
-
-        # Export the word counts to JSON
-        with open('word_counts.json', 'w') as f:
-            json.dump(word_counts_dict, f, indent=4)
-
     def show_words_absent_from_word_embedding(self):
         email_words = list(set(' '.join(self.df['CONTENT'].values).split()))
         model_words = self.word_vect.index_to_key
@@ -200,7 +187,7 @@ class PreProcessor:
                     f.write(f"{word}\n")
 
     def export_to_json(self):
-        self.df.to_json(os.path.join(os.getcwd(), "../data/preprocessed.json"), index=True, orient='index', indent=4)
+        self.df.to_json(os.path.join(os.getcwd(), "../data/unprocessed.json"), index=True, orient='index', indent=4)
 
 
 if __name__ == "__main__":
@@ -208,6 +195,6 @@ if __name__ == "__main__":
     pre_processor = PreProcessor(df)
     pre_processor.pre_process()
     # pre_processor.show_words_absent_from_word_embedding()
-    pre_processor.plot_email_word_counts()
+    # pre_processor.plot_email_word_counts()
     # pre_processor.word_embedding()
     pre_processor.export_to_json()

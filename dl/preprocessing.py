@@ -124,16 +124,15 @@ class PreProcessor:
         # # Replace class paths
         # self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'.*(org\.|java\.|com\.).*', 'class', regex=True)
         #
-        # processing_function_list = [
-        #     normalize_unicode,
-        #     expand_contraction]
+        processing_function_list = [
+            normalize_unicode]
         #
-        # self.df['CONTENT'] = self.df['CONTENT'].transform(
-        #     lambda x: preprocess_text(x, processing_function_list)
-        # )
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
+            lambda x: preprocess_text(x, processing_function_list)
+        )
         #
-        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'[^a-zA-Z0-9\s]', ' ',
-        #                                                     regex=True)  # replace special characters
+        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'[^a-zA-Z0-9\s]', ' ',
+                                                            regex=True)  # replace special characters
         #
         # self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\d+', '', regex=True)  # replace digits
         #
@@ -141,10 +140,10 @@ class PreProcessor:
         #     lambda x: remove_whitespace(x)
         # )
         #
-        # # remove stop words
-        # self.df['CONTENT'] = self.df['CONTENT'].transform(
-        #     lambda x: self.remove_stop_words(x)
-        # )
+        # remove stop words
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
+            lambda x: self.remove_stop_words(x)
+        )
         #
         # # lemmatization
         # self.df['CONTENT'] = self.df['CONTENT'].transform(

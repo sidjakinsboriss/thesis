@@ -54,8 +54,8 @@ if __name__ == '__main__':
 
     class_weights = generate_class_weights(train_tags)
 
-    model = EmailRNN(vocab_length, hidden_size, EMBEDDING_DIM, MAX_SEQUENCE_LENGTH, embedding_matrix,
-                     optimizer).get_model()
+    # model = EmailRNN(vocab_length, hidden_size, EMBEDDING_DIM, MAX_SEQUENCE_LENGTH, embedding_matrix,
+    #                  optimizer).get_model()
 
     # model.fit(train_sequences, train_tags, epochs=epochs, batch_size=batch_size,
     #           validation_data=(val_sequences, val_tags), class_weight=class_weights)
@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
     # Build the model with the optimal hyperparameters and train it on the data for 50 epochs
     model = tuner.hypermodel.build(best_hps)
-    plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
+    # plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
     history = model.fit(train_sequences, train_tags, epochs=epochs, batch_size=batch_size,
                         validation_data=(val_sequences, val_tags), class_weight=class_weights)
 

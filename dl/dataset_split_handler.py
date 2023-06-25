@@ -4,7 +4,6 @@ import random
 from collections import Counter
 
 import numpy as np
-import pandas
 import pandas as pd
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from matplotlib import pyplot as plt
@@ -12,7 +11,7 @@ from sklearn.preprocessing import MultiLabelBinarizer
 
 
 class DatasetHandler:
-    def __init__(self, df: pandas.DataFrame, word_embeddings, include_parent_email):
+    def __init__(self, df: pd.DataFrame, word_embeddings, include_parent_email):
         self.df = df
         self.mlb = MultiLabelBinarizer()
         self.tag_distribution = df['TAGS'].value_counts(normalize=True)
@@ -154,7 +153,7 @@ class DatasetHandler:
 
         return included_indices
 
-    def add_parent_email(self, train_indices) -> pandas.Series:
+    def add_parent_email(self, train_indices) -> pd.Series:
         emails_with_parent_email = []
 
         for idx in train_indices:
@@ -169,7 +168,7 @@ class DatasetHandler:
 
             emails_with_parent_email.append([parent_email, email])
 
-        return pandas.Series(emails_with_parent_email)
+        return pd.Series(emails_with_parent_email)
 
     def get_indices(self):
         for i in range(10):

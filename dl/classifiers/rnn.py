@@ -1,4 +1,4 @@
-import keras_tuner
+import keras_tuner as kt
 from keras.initializers.initializers import Constant
 from keras.layers import Dense, Embedding, LSTM, Bidirectional
 from keras.losses import BinaryCrossentropy
@@ -31,7 +31,7 @@ class EmailRNN:
         return self.model
 
 
-class EmailLSTMHyperModel(keras_tuner.HyperModel):
+class EmailLSTMHyperModel(kt.HyperModel):
     def __init__(self, vocab_length, embedding_matrix):
         super().__init__()
         self.vocab_length = vocab_length

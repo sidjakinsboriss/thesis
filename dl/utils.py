@@ -1,15 +1,17 @@
 import collections
 import json
+import os
 from collections import Counter
 
 import numpy as np
 import pandas
 import pandas as pd
-import torch
-from gensim.models import Word2Vec
+from gensim.models import Word2Vec, KeyedVectors
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator
-from sklearn.metrics import multilabel_confusion_matrix, ConfusionMatrixDisplay, classification_report, f1_score
+from sklearn.metrics import multilabel_confusion_matrix, ConfusionMatrixDisplay, classification_report
+
+TAGS = ['existence', 'not-ak', 'process', 'property', 'technology']
 
 
 def count_word_occurrences(df: pandas.DataFrame):
@@ -26,22 +28,22 @@ def count_word_occurrences(df: pandas.DataFrame):
         json.dump(word_counts_dict, f, indent=4)
 
 
-def draw_class_confusion_matrices(predicted, ground_truth):
-    mcm = multilabel_confusion_matrix(predicted, ground_truth)
+def draw_class_confusion_matrices(ground_truth, predicted):
+    mcm = multilabel_confusion_matrix(ground_truth, predicted)
 
     # Define the display labels for your problem
-    display_labels = ['existence', 'not-ak', 'process', 'property', 'technology']
+    display_labels = TAGS
 
     # Loop through the confusion matrices and plot them
     for i, cm in enumerate(mcm):
         cmd = ConfusionMatrixDisplay(cm, display_labels=[f'Not {display_labels[i]}', display_labels[i]])
         cmd.plot()
         cmd.ax_.set(title=f'Confusion Matrix for {display_labels[i]}', xlabel='Predicted', ylabel='Actual')
-        plt.show()
+        plt.savefig(f"confusion_matrix_{display_labels[i]}.jpg", bbox_inches='tight')
 
 
 def get_class_weights(df: pandas.DataFrame):
-    labels = ['existence', 'not-ak', 'process', 'property', 'technology']
+    labels = TAGS
     N = len(df)
 
     class_weights = {}
@@ -58,73 +60,101 @@ def get_class_weights(df: pandas.DataFrame):
     return class_weights
 
 
-def get_pos_weight(train_loader):
-    """
-    Calculates weights of positive samples for each class
-    """
-    labels = train_loader.dataset.labels
-
-    num_positives = torch.sum(labels, dim=0)
-    num_negatives = len(labels) - num_positives
-
-    return num_negatives / num_positives
-
-
 def plot_tag_distribution(df: pd.DataFrame):
     ax = df['TAGS'].value_counts().plot(
         kind='bar',
         figsize=(10, 4),
         title='Tag Distribution',
-        ylabel='Proportion of observations'
+        ylabel='Number of observations'
     )
     for p in ax.patches:
         ax.annotate(str(p.get_height()), (p.get_x() * 1.005, p.get_height() * 1.005))
-    plt.show()
+    # plt.show()
+    plt.savefig("manual.jpg", bbox_inches='tight')
 
 
 def plot_label_frequencies(labels):
-    label_frequencies = torch.sum(labels, dim=0)
+    label_frequencies = np.sum(labels, axis=0)
 
     label_indices = np.arange(5)
-    plt.bar(label_indices, label_frequencies.numpy(), edgecolor='black')
-    plt.xlabel('Label Index')
+    bars = plt.bar(label_indices, label_frequencies, edgecolor='black')
     plt.ylabel('Frequency')
-    plt.title('Distribution of Labels')
-    plt.xticks(label_indices)
+    plt.xticks(label_indices, TAGS)
     plt.grid(axis='y', alpha=0.75)
+
+    for bar in bars:
+        yval = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 2.5, yval, int(yval), va='bottom')
+
     plt.show()
 
 
-def plot_dataset_tag_combination_counts(dataset):
-    tags = ['existence', 'not-ak', 'process', 'property', 'technology']
+def plot_dataset_tag_combination_counts(labels):
+    tags = TAGS
 
     # Count unique label combinations
     label_counts = collections.defaultdict(int)
-    for i in range(len(dataset)):
-        label = dataset.labels[i]
-        label = ', '.join([tags[i] for i in range(5) if label[i] == 1])
-        label_counts[label] += 1
+    for i in range(len(labels)):
+        label = labels[i]
+        email_tags = [tags[i] for i in range(5) if label[i] == 1]
+
+        if len(email_tags) > 1:
+            label = ', '.join(email_tags)
+            label_counts[label] += 1
 
     # Plot the counts
     labels, counts = zip(*label_counts.items())
+
+    zipped_lists = zip(counts, labels)
+    zipped_lists_sorted = sorted(zipped_lists, reverse=True)
+    counts, labels = zip(*zipped_lists_sorted)
+
     x = range(len(labels))
-    plt.bar(x, counts, tick_label=labels)
+    bars = plt.bar(x, counts, tick_label=labels)
     plt.xticks(rotation=90)
-    plt.xlabel("Label combinations")
-    plt.ylabel("Counts")
 
-    plt.savefig("test.jpg", bbox_inches='tight')
+    for bar in bars:
+        yval = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 4.0, yval + 3, int(yval), va='bottom', rotation=90)
+
+    plt.ylim(0, max(counts) * 1.2)
+
+    plt.savefig("tag_combination_counts.jpg", bbox_inches='tight')
 
 
-def get_embedding_matrix(embedding_dim, word_index):
-    gensim_model = Word2Vec.load('embeddings/word2vec_model')
-    wv = gensim_model.wv
+def plot_email_word_counts(df):
+    length_ranges = [x * 100 for x in range(20)]
+    df['email_length'] = df['CONTENT'].apply(lambda x: len(x))
+    df['length_range'] = pd.cut(df['email_length'], bins=length_ranges)
+    email_count = df['length_range'].value_counts().sort_index()
+
+    bars = plt.bar(email_count.index.astype(str), email_count.values)
+    plt.xticks(rotation=45)
+
+    for bar in bars:
+        yval = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 4.0, yval + 10, int(yval), va='bottom', rotation=90)
+
+    plt.ylim(0, max(email_count) * 1.2)
+
+    plt.show()
+
+
+def get_embedding_matrix(embedding_dim, word_index, use_so=True):
+    if use_so:
+        wv = KeyedVectors.load_word2vec_format('embeddings/SO_vectors_200.bin', binary=True)
+    else:
+        gensim_model = Word2Vec.load('embeddings/word2vec_model')
+        wv = gensim_model.wv
 
     embedding_matrix = np.zeros((len(word_index) + 1, embedding_dim))
 
     for word, i in word_index.items():
         if word in wv:
             embedding_matrix[i] = wv[word]
+        else:
+            # Create a random embedding for OOV words
+            embedding_matrix[i] = np.random.uniform(-0.1, 0.1, embedding_dim)
 
     return embedding_matrix
 
@@ -134,7 +164,7 @@ def draw_matrix(ground_truth: np.ndarray, predicted: np.ndarray):
     Draws a symmetric matrix, where rows represent ground truth labels,
     and columns represent predicted labels
     """
-    row_names = col_names = np.array(['existence', 'not-ak', 'process', 'property', 'technology'])
+    row_names = col_names = np.array(TAGS)
 
     row_labels = np.unique(ground_truth, axis=0)
     column_labels = np.unique(predicted, axis=0)
@@ -153,7 +183,7 @@ def draw_matrix(ground_truth: np.ndarray, predicted: np.ndarray):
             row_names = np.append(row_names, new_label)
             col_names = np.append(col_names, new_label)
 
-    matrix = np.zeros((len(row_names), len(col_names)))
+    matrix = np.zeros((len(row_names), len(col_names)), dtype=np.int)
 
     for i, truth in enumerate(ground_truth):
         pred = predicted[i]
@@ -200,67 +230,61 @@ def draw_matrix(ground_truth: np.ndarray, predicted: np.ndarray):
 def display_results(ground_truth, predicted):
     print(classification_report(ground_truth, predicted))
 
-    # Calculate F-score
-    f1 = f1_score(ground_truth, predicted, average=None)
-    f_score_micro = f1_score(ground_truth, predicted, average='micro')
-    f_score_macro = f1_score(ground_truth, predicted, average='macro')
-    f_score_weighted = f1_score(ground_truth, predicted, average='weighted')
 
-    print(f'F1 score per class: {f1}')
-    print(f'F1 score micro: {f_score_micro}')
-    print(f'F1 score macro: {f_score_macro}')
-    print(f'F1 score weighted: {f_score_weighted}')
+def generate_class_weights(labels):
+    class_counts = np.sum(labels, axis=0)
+
+    class_weight = dict()
+    for i, count in enumerate(class_counts):
+        class_weight[i] = (1 / count) * (len(labels) / 2.0)
+    return class_weight
 
 
-import numpy as np
-from sklearn.utils.class_weight import compute_class_weight
-from sklearn.preprocessing import MultiLabelBinarizer
+def record_misclassified_inputs(test_tags, predicted_labels, train_texts):
+    def _is_architectural(tag):
+        return np.array_equal(tag, np.array([0, 1, 0, 0, 0]))
+
+    tags = np.array(TAGS)
+
+    texts = []
+    true_tags = []
+    predicted_tags = []
+
+    for i, res in enumerate(zip(test_tags, predicted_labels)):
+        truth = res[0]
+        pred = res[1]
+
+        if (_is_architectural(truth) and not _is_architectural(pred)) or (
+                not _is_architectural(truth) and _is_architectural(pred)):
+            truth_indices = np.where(truth == 1)[0]
+            pred_indices = np.where(pred == 1)[0]
+
+            true_tag = ', '.join([tags[i] for i in truth_indices])
+            predicted_tag = ', '.join([tags[i] for i in pred_indices])
+
+            texts.append(train_texts[i])
+            true_tags.append(true_tag)
+            predicted_tags.append(predicted_tag)
+
+    columns = ['Text', 'Tag', 'Predicted As']
+
+    data = {
+        columns[0]: texts,
+        columns[1]: true_tags,
+        columns[2]: predicted_tags
+    }
+
+    # Create the DataFrame from the dictionary
+    df = pd.DataFrame(data)
+
+    df.to_json(os.path.join(os.getcwd(), "../data/misclassified.json"), index=True, orient='index',
+               indent=4)
 
 
-def generate_class_weights(class_series, multi_class=True, one_hot_encoded=True):
-    """
-    Method to generate class weights given a set of multi-class or multi-label labels, both one-hot-encoded or not.
-    Some examples of different formats of class_series and their outputs are:
-      - generate_class_weights(['mango', 'lemon', 'banana', 'mango'], multi_class=True, one_hot_encoded=False)
-      {'banana': 1.3333333333333333, 'lemon': 1.3333333333333333, 'mango': 0.6666666666666666}
-      - generate_class_weights([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 0, 0]], multi_class=True, one_hot_encoded=True)
-      {0: 0.6666666666666666, 1: 1.3333333333333333, 2: 1.3333333333333333}
-      - generate_class_weights([['mango', 'lemon'], ['mango'], ['lemon', 'banana'], ['lemon']], multi_class=False, one_hot_encoded=False)
-      {'banana': 1.3333333333333333, 'lemon': 0.4444444444444444, 'mango': 0.6666666666666666}
-      - generate_class_weights([[0, 1, 1], [0, 0, 1], [1, 1, 0], [0, 1, 0]], multi_class=False, one_hot_encoded=True)
-      {0: 1.3333333333333333, 1: 0.4444444444444444, 2: 0.6666666666666666}
-    The output is a dictionary in the format { class_label: class_weight }. In case the input is one hot encoded, the class_label would be index
-    of appareance of the label when the dataset was processed.
-    In multi_class this is np.unique(class_series) and in multi-label np.unique(np.concatenate(class_series)).
-    Author: Angel Igareta (angel@igareta.com)
-    """
-    if multi_class:
-        # If class is one hot encoded, transform to categorical labels to use compute_class_weight
-        if one_hot_encoded:
-            class_series = np.argmax(class_series, axis=1)
+def calculate_pos_weight(df: pandas.DataFrame):
+    pos_weight = []
+    for tag in TAGS:
+        neg_count = sum(df[tag] == 0)
+        pos_weight.append(neg_count / (len(df) - neg_count))
 
-        # Compute class weights with sklearn method
-        class_labels = np.unique(class_series)
-        class_weights = compute_class_weight(class_weight='balanced', classes=class_labels, y=class_series)
-        return dict(zip(class_labels, class_weights))
-    else:
-        # It is neccessary that the multi-label values are one-hot encoded
-        mlb = None
-        if not one_hot_encoded:
-            mlb = MultiLabelBinarizer()
-            class_series = mlb.fit_transform(class_series)
-
-        n_samples = len(class_series)
-        n_classes = len(class_series[0])
-
-        # Count each class frequency
-        class_count = [0] * n_classes
-        for classes in class_series:
-            for index in range(n_classes):
-                if classes[index] != 0:
-                    class_count[index] += 1
-
-        # Compute class weights using balanced method
-        class_weights = [n_samples / (n_classes * freq) if freq > 0 else 1 for freq in class_count]
-        class_labels = range(len(class_weights)) if mlb is None else mlb.classes_
-        return dict(zip(class_labels, class_weights))
+    return np.array(pos_weight)

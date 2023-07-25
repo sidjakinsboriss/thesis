@@ -1,6 +1,5 @@
 import collections
 import json
-import os
 from collections import Counter
 
 import numpy as np
@@ -9,9 +8,10 @@ import pandas as pd
 from gensim.models import Word2Vec, KeyedVectors
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator
-from sklearn.metrics import multilabel_confusion_matrix, ConfusionMatrixDisplay, classification_report
+from sklearn.metrics import multilabel_confusion_matrix, ConfusionMatrixDisplay, \
+    classification_report
 
-TAGS = ['existence', 'not-ak', 'process', 'property', 'technology']
+from dl.constants import TAGS
 
 
 def count_word_occurrences(df: pandas.DataFrame):
@@ -19,7 +19,8 @@ def count_word_occurrences(df: pandas.DataFrame):
 
     words = text.split()
     word_counts = Counter(words)
-    sorted_word_counts = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
+    sorted_word_counts = sorted(word_counts.items(), key=lambda x: x[1],
+                                reverse=True)
 
     word_counts_dict = {word: count for word, count in sorted_word_counts}
 
@@ -31,15 +32,16 @@ def count_word_occurrences(df: pandas.DataFrame):
 def draw_class_confusion_matrices(ground_truth, predicted):
     mcm = multilabel_confusion_matrix(ground_truth, predicted)
 
-    # Define the display labels for your problem
-    display_labels = TAGS
-
     # Loop through the confusion matrices and plot them
     for i, cm in enumerate(mcm):
-        cmd = ConfusionMatrixDisplay(cm, display_labels=[f'Not {display_labels[i]}', display_labels[i]])
+        cmd = ConfusionMatrixDisplay(cm,
+                                     display_labels=[f'Not {TAGS[i]}',
+                                                     TAGS[i]])
         cmd.plot()
-        cmd.ax_.set(title=f'Confusion Matrix for {display_labels[i]}', xlabel='Predicted', ylabel='Actual')
-        plt.savefig(f"confusion_matrix_{display_labels[i]}.jpg", bbox_inches='tight')
+        cmd.ax_.set(title=f'Confusion Matrix for {TAGS[i]}',
+                    xlabel='Predicted', ylabel='Actual')
+        plt.savefig(f"confusion_matrix_{TAGS[i]}.jpg",
+                    bbox_inches='tight')
 
 
 def get_class_weights(df: pandas.DataFrame):
@@ -68,8 +70,8 @@ def plot_tag_distribution(df: pd.DataFrame):
         ylabel='Number of observations'
     )
     for p in ax.patches:
-        ax.annotate(str(p.get_height()), (p.get_x() * 1.005, p.get_height() * 1.005))
-    # plt.show()
+        ax.annotate(str(p.get_height()),
+                    (p.get_x() * 1.005, p.get_height() * 1.005))
     plt.savefig("manual.jpg", bbox_inches='tight')
 
 
@@ -84,19 +86,18 @@ def plot_label_frequencies(labels):
 
     for bar in bars:
         yval = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width() / 2.5, yval, int(yval), va='bottom')
+        plt.text(bar.get_x() + bar.get_width() / 2.5, yval, int(yval),
+                 va='bottom')
 
     plt.show()
 
 
 def plot_dataset_tag_combination_counts(labels):
-    tags = TAGS
-
     # Count unique label combinations
     label_counts = collections.defaultdict(int)
     for i in range(len(labels)):
         label = labels[i]
-        email_tags = [tags[i] for i in range(5) if label[i] == 1]
+        email_tags = [TAGS[i] for i in range(5) if label[i] == 1]
 
         if len(email_tags) > 1:
             label = ', '.join(email_tags)
@@ -115,14 +116,14 @@ def plot_dataset_tag_combination_counts(labels):
 
     for bar in bars:
         yval = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width() / 4.0, yval + 3, int(yval), va='bottom', rotation=90)
+        plt.text(bar.get_x() + bar.get_width() / 4.0, yval + 3, int(yval),
+                 va='bottom', rotation=90)
 
     plt.ylim(0, max(counts) * 1.2)
+    plt.savefig('tag_combination_counts.jpg', bbox_inches='tight')
 
-    plt.savefig("tag_combination_counts.jpg", bbox_inches='tight')
 
-
-def plot_email_word_counts(df):
+def plot_email_word_counts(df: pd.DataFrame):
     length_ranges = [x * 100 for x in range(20)]
     df['email_length'] = df['CONTENT'].apply(lambda x: len(x))
     df['length_range'] = pd.cut(df['email_length'], bins=length_ranges)
@@ -132,17 +133,18 @@ def plot_email_word_counts(df):
     plt.xticks(rotation=45)
 
     for bar in bars:
-        yval = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width() / 4.0, yval + 10, int(yval), va='bottom', rotation=90)
+        y_val = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 4.0, y_val + 10, int(y_val),
+                 va='bottom', rotation=90)
 
     plt.ylim(0, max(email_count) * 1.2)
-
     plt.show()
 
 
 def get_embedding_matrix(embedding_dim, word_index, use_so=True):
     if use_so:
-        wv = KeyedVectors.load_word2vec_format('embeddings/SO_vectors_200.bin', binary=True)
+        wv = KeyedVectors.load_word2vec_format('embeddings/SO_vectors_200.bin',
+                                               binary=True)
     else:
         gensim_model = Word2Vec.load('embeddings/word2vec_model')
         wv = gensim_model.wv
@@ -166,6 +168,9 @@ def draw_matrix(ground_truth: np.ndarray, predicted: np.ndarray):
     """
     row_names = col_names = np.array(TAGS)
 
+    row_names = np.append(row_names, 'not-ak')
+    col_names = np.append(col_names, 'not-ak')
+
     row_labels = np.unique(ground_truth, axis=0)
     column_labels = np.unique(predicted, axis=0)
 
@@ -185,21 +190,18 @@ def draw_matrix(ground_truth: np.ndarray, predicted: np.ndarray):
 
     matrix = np.zeros((len(row_names), len(col_names)), dtype=np.int)
 
-    for i, truth in enumerate(ground_truth):
-        pred = predicted[i]
+    for pred, truth in zip(predicted, ground_truth):
         indices = np.where(pred == 1)[0]
-
         if indices.size != 0:
             col_name = ', '.join([col_names[i] for i in indices])
 
             indices = np.where(truth == 1)[0]
-            row_name = ', '.join([row_names[i] for i in indices])
+            row_name = ', '.join([col_names[i] for i in indices])
+
             row_index = np.where(row_names == row_name)[0][0]
+            col_index = np.where(col_names == col_name)[0][0]
 
-            if col_name:
-                col_index = np.where(col_names == col_name)[0][0]
-
-                matrix[row_index][col_index] += 1
+            matrix[row_index][col_index] += 1
 
     num_rows, num_cols = matrix.shape
     fig, ax = plt.subplots(figsize=(20, 10))
@@ -224,10 +226,14 @@ def draw_matrix(ground_truth: np.ndarray, predicted: np.ndarray):
             ax.text(j, i, str(matrix[i, j]), va='center', ha='center')
 
     # Save the plot
-    plt.savefig("matrix.jpg", bbox_inches='tight')
+    plt.savefig('matrix.jpg', bbox_inches='tight')
 
 
 def display_results(ground_truth, predicted):
+    """
+    Prints accuracy, recall, and f1-score metrics based on
+    ground truth and predicted labels
+    """
     print(classification_report(ground_truth, predicted))
 
 
@@ -238,53 +244,3 @@ def generate_class_weights(labels):
     for i, count in enumerate(class_counts):
         class_weight[i] = (1 / count) * (len(labels) / 2.0)
     return class_weight
-
-
-def record_misclassified_inputs(test_tags, predicted_labels, train_texts):
-    def _is_architectural(tag):
-        return np.array_equal(tag, np.array([0, 1, 0, 0, 0]))
-
-    tags = np.array(TAGS)
-
-    texts = []
-    true_tags = []
-    predicted_tags = []
-
-    for i, res in enumerate(zip(test_tags, predicted_labels)):
-        truth = res[0]
-        pred = res[1]
-
-        if (_is_architectural(truth) and not _is_architectural(pred)) or (
-                not _is_architectural(truth) and _is_architectural(pred)):
-            truth_indices = np.where(truth == 1)[0]
-            pred_indices = np.where(pred == 1)[0]
-
-            true_tag = ', '.join([tags[i] for i in truth_indices])
-            predicted_tag = ', '.join([tags[i] for i in pred_indices])
-
-            texts.append(train_texts[i])
-            true_tags.append(true_tag)
-            predicted_tags.append(predicted_tag)
-
-    columns = ['Text', 'Tag', 'Predicted As']
-
-    data = {
-        columns[0]: texts,
-        columns[1]: true_tags,
-        columns[2]: predicted_tags
-    }
-
-    # Create the DataFrame from the dictionary
-    df = pd.DataFrame(data)
-
-    df.to_json(os.path.join(os.getcwd(), "../data/misclassified.json"), index=True, orient='index',
-               indent=4)
-
-
-def calculate_pos_weight(df: pandas.DataFrame):
-    pos_weight = []
-    for tag in TAGS:
-        neg_count = sum(df[tag] == 0)
-        pos_weight.append(neg_count / (len(df) - neg_count))
-
-    return np.array(pos_weight)

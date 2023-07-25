@@ -3,7 +3,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import MultiLabelBinarizer
 
-TAGS = ['existence', 'not-ak', 'process', 'property', 'technology']
+from dl.constants import TAGS
 
 
 def draw_tag_counts(labels):

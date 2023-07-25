@@ -1,7 +1,8 @@
+import random
+
 import numpy as np
 import pandas as pd
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
-from matplotlib import pyplot as plt
 from sklearn.preprocessing import MultiLabelBinarizer
 
 
@@ -20,7 +21,8 @@ class DatasetHandler:
         y = self.df.iloc[:, 4:]
 
         n_splits = 10
-        skf = MultilabelStratifiedKFold(n_splits=n_splits, random_state=42, shuffle=True)
+        skf = MultilabelStratifiedKFold(n_splits=n_splits, random_state=42,
+                                        shuffle=True)
 
         for _, test_index in skf.split(X, y):
             self.indices.append(test_index)
@@ -47,18 +49,10 @@ class DatasetHandler:
 
     def add_powerlabels(self):
         self.df['POWERLABEL'] = self.df.apply(
-            lambda x: 16 * x['existence'] + 8 * x['not-ak'] + 4 * x['process'] + 2 * x['property'] + 1 * x[
-                'technology'],
+            lambda x: 16 * x['existence'] + 8 * x['not-ak'] + 4 * x[
+                'process'] + 2 * x['property'] + 1 * x[
+                          'technology'],
             axis=1)
-
-    def plot_tag_distribution(self):
-        self.tag_distribution.plot(
-            kind='bar',
-            figsize=(10, 4),
-            title='Tag Distribution',
-            ylabel='Proportion of observations'
-        )
-        plt.show()
 
     def oversampled_df(self, train_indices):
         train_df = self.df.iloc[train_indices, :]
@@ -70,7 +64,9 @@ class DatasetHandler:
         maxcount = np.max(list(powercount.values()))
         for p in powerlabels:
             gapnum = maxcount - powercount[p]
-            temp_df = train_df.iloc[np.random.choice(np.where(train_df['POWERLABEL'] == p)[0], size=gapnum)]
+            temp_df = train_df.iloc[
+                np.random.choice(np.where(train_df['POWERLABEL'] == p)[0],
+                                 size=gapnum)]
             train_df = train_df.append(temp_df)
 
         indices = train_df.index.values
@@ -90,7 +86,8 @@ class DatasetHandler:
         return np.array(parent_indices)
 
     @staticmethod
-    def concatenate_with_parent_indices(sequences, indices, parent_sequences, parent_indices):
+    def concatenate_with_parent_indices(sequences, indices, parent_sequences,
+                                        parent_indices):
         res = []
 
         for i in range(len(sequences)):
@@ -101,13 +98,33 @@ class DatasetHandler:
 
         return np.array(res, dtype=int)
 
-    def get_indices(self):
+    def under_sample(self, train_indices):
+        ak_indices, not_ak_indices = [], []
+        for idx in train_indices:
+            if self.df.iloc[idx]['not-ak']:
+                not_ak_indices.append(idx)
+            else:
+                ak_indices.append(idx)
+
+        train_indices = ak_indices + random.sample(not_ak_indices, 250)
+        random.shuffle(train_indices)
+
+        return np.array(train_indices)
+
+    def get_indices(self, under_sample=False, for_optimization=False):
         for i in range(10):
-            indices = [num for num in [k for k in range(10)] if num not in [i, (i + 1) % 10]]
+            indices = [num for num in [k for k in range(10)] if
+                       num not in [i, (i + 1) % 10]]
 
             test_indices = self.indices[i]
             val_indices = self.indices[(i + 1) % 10]
             train_indices = [self.indices[k] for k in indices]
-            train_indices = [idx for sublist in train_indices for idx in sublist]
+            train_indices = [idx for sublist in train_indices for idx in
+                             sublist]
+            if under_sample:
+                train_indices = self.under_sample(train_indices)
+
+            if for_optimization:
+                return train_indices, val_indices, test_indices
 
             yield train_indices, val_indices, test_indices

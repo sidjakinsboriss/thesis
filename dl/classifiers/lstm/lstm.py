@@ -1,27 +1,21 @@
 import keras_tuner as kt
 import tensorflow as tf
 
-NUM_CLASSES = 5
-EMBEDDING_DIM = 200
-MAX_SEQUENCE_LENGTH = 100
+from dl.constants import EMBEDDING_DIM, MAX_SEQUENCE_LENGTH, NUM_CLASSES
 
 
 class EmailRNN:
-    def __init__(self, vocab_length, hidden_size, embedding_matrix, optimizer):
+    def __init__(self, vocab_length, embedding_matrix, lstm_size=512, hidden_size=128):
         model = tf.keras.models.Sequential()
         model.add(
             tf.keras.layers.Embedding(vocab_length, EMBEDDING_DIM,
-                                      input_length=MAX_SEQUENCE_LENGTH * 2,
+                                      input_length=MAX_SEQUENCE_LENGTH,
                                       embeddings_initializer=tf.keras.initializers.Constant(
                                           embedding_matrix),
-                                      trainable=True, mask_zero=True))
-        model.add(
-            tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hidden_size)))
-
+                                      trainable=True, mask_zero=True, batch_size=32))
+        model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(lstm_size)))
+        model.add(tf.keras.layers.Dense(hidden_size, activation='relu'))
         model.add(tf.keras.layers.Dense(NUM_CLASSES))
-
-        model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
-                      optimizer=optimizer)
 
         self.model = model
 
@@ -46,23 +40,24 @@ class EmailLSTMHyperModel(kt.HyperModel):
                                       ),
                                       trainable=True, mask_zero=True))
 
+        hp_lstm_size = hp.Choice('lstm_size', values=[64, 128, 256, 512])
         hp_hidden_size = hp.Int('hidden_size', min_value=32, max_value=512,
                                 step=32)
 
         hp_num_layers = hp.Int('num_layers', min_value=0, max_value=3, step=1)
 
-        for i in range(hp_num_layers):
-            model.add(tf.keras.layers.Bidirectional(
-                tf.keras.layers.LSTM(hp_hidden_size, return_sequences=True)))
-
         model.add(
-            tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hp_hidden_size))
+            tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hp_lstm_size))
         )
+
+        for i in range(hp_num_layers):
+            model.add(tf.keras.layers.Dense(hp_hidden_size))
+
         model.add(tf.keras.layers.Dense(NUM_CLASSES))
 
         hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
 
-        optimizer = tf.keras.optimizers.AdamW(learning_rate=hp_learning_rate)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=hp_learning_rate)
         loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
         model.compile(loss=loss, optimizer=optimizer)

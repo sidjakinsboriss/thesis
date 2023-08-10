@@ -24,13 +24,9 @@ class EmailBERT:
 
         # We only care about DistilBERT's output for the [CLS] token,
         # which is located at index 0 of every encoded sequence.
-        # Splicing out the [CLS] tokens gives us 2D data.
         cls_token = last_hidden_state[:, 0, :]
 
-        # Define a single node that makes up the output layer (for binary classification)
         output = tf.keras.layers.Dense(NUM_CLASSES)(cls_token)
-
-        # Define the model
         model = tf.keras.models.Model([input_ids_layer, input_attention_layer], output)
 
         self.model = model
@@ -44,12 +40,14 @@ class EmailBERTHyperModel(kt.HyperModel):
         super().__init__()
 
     def build(self, hp):
+        hp_learning_rate = hp.Choice('learning_rate', values=[0.001, 0.0001, 0.00001])
+
         bert = TFDistilBertModel.from_pretrained(MODEL_NAME)
 
-        input_ids_layer = tf.keras.layers.Input(shape=(MAX_LENGTH,),
+        input_ids_layer = tf.keras.layers.Input(shape=(MAX_SEQUENCE_LENGTH,),
                                                 name='input_ids',
                                                 dtype='int32')
-        input_attention_layer = tf.keras.layers.Input(shape=(MAX_LENGTH,),
+        input_attention_layer = tf.keras.layers.Input(shape=(MAX_SEQUENCE_LENGTH,),
                                                       name='input_attention',
                                                       dtype='int32')
 
@@ -58,8 +56,7 @@ class EmailBERTHyperModel(kt.HyperModel):
 
         output = tf.keras.layers.Dense(NUM_CLASSES)(cls_token)
 
-        hp_learning_rate = hp.Choice('learning_rate', values=[0.001, 0.0001, 0.00001])
-        optimizer = tf.keras.optimizers.AdamW(learning_rate=hp_learning_rate)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=hp_learning_rate)
         loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
         model = tf.keras.models.Model([input_ids_layer, input_attention_layer], output)

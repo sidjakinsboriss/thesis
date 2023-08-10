@@ -36,7 +36,7 @@ if __name__ == '__main__':
     embedding_matrix = get_embedding_matrix(EMBEDDING_DIM, word_index, use_so=False)
     vocab_length = len(word_index) + 1
 
-    train_indices, val_indices, test_indices = dataset_handler.get_indices(for_optimization=True)
+    train_indices, val_indices, test_indices = dataset_handler.get_indices_for_optimization()
 
     # Sequences
     train_sequences = padded_sequences[train_indices]

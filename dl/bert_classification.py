@@ -6,7 +6,7 @@ import pandas as pd
 import tensorflow as tf
 from transformers import DistilBertTokenizerFast, TFDistilBertModel
 
-from dl.training_bert import batch_encode
+from dl.classifiers.bert.training_bert import batch_encode
 from dl.utils import TAGS
 
 if __name__ == '__main__':
@@ -28,25 +28,46 @@ if __name__ == '__main__':
     tag_ids = [row[:2] for row in cursor.fetchall()]
 
     tag_ids_dict = {}
+    tag_ids_dict_reverse = {}
 
     for tag_id in tag_ids:
         tag_ids_dict[tag_id[1]] = tag_id[0]
+        tag_ids_dict_reverse[tag_id[0]] = tag_id[1]
 
-    # Load the dataset
-    df = pd.read_csv("../data/whole_dataset.csv")
+        # Create a dataframe with whole dataset
+    cursor.execute("SELECT * FROM EMAIL")
+    emails = [row for row in cursor.fetchall()]
+    emails = [(email[0], email[1], email[3], email[5], []) for email in emails]
+
+    for email in emails:
+        email_id = email[0]
+
+        cursor.execute(f"SELECT TAG_ID FROM EMAIL_TAG WHERE EMAIL_ID = {email_id}")
+        email_tag_ids = cursor.fetchall()
+
+        email_tags = [tag_ids_dict_reverse[tag_id[0]] for tag_id in email_tag_ids]
+
+        for tag in email_tags:
+            email[4].append(tag)
+
+    df = pd.DataFrame(emails, columns=['id', 'parent_id', 'subject', 'sent_from', 'tags'])
+    df.to_json('emails_bert.json', orient='records')
+
+    # Load the pre-processed dataset
+    df = pd.read_csv("../data/whole_dataset_preprocessed.csv")
 
     # Choose emails that are not tagged
     df = df[~df['ID'].isin(tagged_email_ids)]
     email_texts = df['CONTENT'].tolist()
     email_ids = df['ID'].tolist()
-
-    # Replace nan values with an empty string
-    for i, text in enumerate(email_texts):
-        if not isinstance(text, str):
-            email_texts[i] = ''
-
-    tokenizer = DistilBertTokenizerFast.from_pretrained('distilbert-base-uncased')
-    # ids, attention = batch_encode(tokenizer, email_texts, 64)
+    #
+    # # Replace nan values with an empty string
+    # for i, text in enumerate(email_texts):
+    #     if not isinstance(text, str):
+    #         email_texts[i] = ''
+    #
+    # tokenizer = DistilBertTokenizerFast.from_pretrained('distilbert-base-uncased')
+    # ids, attention = batch_encode(tokenizer, email_texts)
     #
     # ids_numpy = ids.numpy()
     # attention_numpy = attention.numpy()
@@ -60,28 +81,31 @@ if __name__ == '__main__':
     #
     # ids = tf.convert_to_tensor(ids)
     # attention = tf.convert_to_tensor(attention)
-
-    # Load the model
-    # model = tf.keras.models.load_model('bert', custom_objects={"TFDistilBertModel": TFDistilBertModel})
-
-    # Predict the labels
+    #
+    # # Load the model
+    # model = tf.keras.models.load_model('../bert.h5', custom_objects={"TFDistilBertModel": TFDistilBertModel})
+    #
+    # # Predict the labels
     # output = model.predict([ids, attention])
     # output = tf.math.sigmoid(output).numpy()
     #
     # threshold = 0.5
     # predictions = (output >= threshold).astype(int)
+    #
+    # predictions = predictions.numpy()
+    # np.save('predictions.npy', predictions)
 
     predictions = np.load('predictions.npy')
-
-    tags = TAGS
 
     predicted_labels = []
 
     for label in predictions:
         indices = np.where(label == 1)[0]
         if indices.size != 0:
-            predicted_label = ['bert'] + [tags[i] for i in indices]
-            predicted_labels.append(predicted_label)
+            predicted_label = ['bert'] + [TAGS[i] for i in indices]
+        else:
+            predicted_label = ['bert', 'not-ak']
+        predicted_labels.append(predicted_label)
 
     # Insert new labeled emails into EMAIL_TAG table
     for i, labels in enumerate(predicted_labels):

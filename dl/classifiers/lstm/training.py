@@ -10,7 +10,7 @@ from dl.classifiers.lstm.lstm import EmailRNN
 from dl.constants import MAX_SEQUENCE_LENGTH, EMBEDDING_DIM
 from dl.dataset_handler import DatasetHandler
 from dl.utils import get_embedding_matrix, generate_class_weights, draw_matrix, display_results, \
-    draw_class_confusion_matrices
+    draw_class_confusion_matrices, plot_model
 
 if __name__ == '__main__':
     include_parent_email = False
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     # df = pd.read_json(os.path.join(os.getcwd(), '../data/preprocessed.json'), orient='index')
     # df.to_csv(os.path.join(os.getcwd(), '../data/dataframe.csv'), index=None)
 
-    df = pd.read_csv(os.path.join(os.getcwd(), '../data/dataframe.csv'))
+    df = pd.read_csv(os.path.join(os.getcwd(), 'data/dataframe.csv'))
     dataset_handler = DatasetHandler(df)
     dataset_handler.encode_labels()
     dataset_handler.split_dataset()
@@ -83,9 +83,8 @@ if __name__ == '__main__':
         optimizer = tf.keras.optimizers.AdamW(learning_rate=lr)
         loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
-        model = EmailRNN(vocab_length, hidden_size, embedding_matrix).get_model()
+        model = EmailRNN(vocab_length, embedding_matrix).get_model()
         model.compile(optimizer=optimizer, loss=loss)
-
         steps_per_epoch = math.floor(len(train_sequences) / batch_size)
         steps_per_epoch_val = math.floor(len(val_sequences) / batch_size)
 

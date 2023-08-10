@@ -13,7 +13,7 @@ if __name__ == '__main__':
     # df = pd.read_json(os.path.join(os.getcwd(), '../data/preprocessed.json'), orient='index')
     # df.to_csv(os.path.join(os.getcwd(), '../data/dataframe.csv'), index=None)
 
-    df = pd.read_csv(os.path.join(os.getcwd(), '../data/dataframe.csv'))
+    df = pd.read_csv(os.path.join(os.getcwd(), 'data/dataframe.csv'))
     dataset_handler = DatasetHandler(df)
     dataset_handler.encode_labels()
     dataset_handler.split_dataset()
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     embedding_matrix = get_embedding_matrix(EMBEDDING_DIM, word_index, use_so=False)
     vocab_length = len(word_index) + 1
 
-    train_indices, val_indices, test_indices = dataset_handler.get_indices(for_optimization=True)
+    train_indices, val_indices, test_indices = dataset_handler.get_indices()
 
     # Sequences
     train_sequences = padded_sequences[train_indices]

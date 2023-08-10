@@ -5,19 +5,19 @@ from dl.constants import MAX_SEQUENCE_LENGTH, EMBEDDING_DIM, NUM_CLASSES
 
 
 class EmailCNN:
-    def __init__(self, vocab_length, embedding_matrix, filters=32, hidden_layer_size=32, num_convolutions=1):
-        input_layer = tf.keras.layers.Input(shape=(MAX_SEQUENCE_LENGTH,))
+    def __init__(self, vocab_length, embedding_matrix, filters=64, hidden_layer_size=0, num_convolutions=3,
+                 kernel_size=3):
+        input_layer = tf.keras.layers.Input(shape=(MAX_SEQUENCE_LENGTH,), batch_size=32)
         embedding = tf.keras.layers.Embedding(vocab_length, EMBEDDING_DIM,
                                               input_length=MAX_SEQUENCE_LENGTH,
                                               embeddings_initializer=tf.keras.initializers.Constant(
                                                   embedding_matrix),
                                               trainable=True, mask_zero=True)(input_layer)
 
-        kernel_sizes = [8]
         conv_layers = [
             tf.keras.layers.Conv1D(filters=filters,
                                    kernel_size=kernel_size)(embedding)
-            for kernel_size in kernel_sizes
+            for _ in range(num_convolutions)
         ]
 
         pooling_layers = [
@@ -26,11 +26,9 @@ class EmailCNN:
         ]
 
         if len(pooling_layers) == 1:
-            concatenated = pooling_layers[0]
+            hidden = pooling_layers[0]
         else:
-            concatenated = tf.keras.layers.concatenate(pooling_layers, axis=1)
-
-        hidden = tf.keras.layers.Flatten()(concatenated)
+            hidden = tf.keras.layers.concatenate(pooling_layers, axis=1)
 
         if hidden_layer_size > 0:
             hidden = tf.keras.layers.Dense(hidden_layer_size, activation='relu')(hidden)
@@ -73,11 +71,10 @@ class EmailCNNHyperModel(kt.HyperModel):
         ]
 
         if len(pooling_layers) == 1:
-            concatenated = pooling_layers[0]
+            hidden = pooling_layers[0]
         else:
-            concatenated = tf.keras.layers.concatenate(pooling_layers, axis=1)
+            hidden = tf.keras.layers.concatenate(pooling_layers, axis=1)
 
-        hidden = tf.keras.layers.Flatten()(concatenated)
         if hp_hidden_size > 0:
             hidden = tf.keras.layers.Dense(hp_hidden_size, activation='relu')(hidden)
 

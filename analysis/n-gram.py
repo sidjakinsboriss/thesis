@@ -34,15 +34,16 @@ def _get_closest_ak_email_labels(parent_id):
         if _is_architectural(parent_email_labels):
             return parent_email_labels, parent_email
         parent_id = parent_email['parent_id']
+        return _get_closest_ak_email_labels(parent_id)
     return None, None
 
 
 if __name__ == '__main__':
     skip_not_ak = True
-    df = pd.read_json('emails_manual.json')
-    # df = pd.read_json('emails_bert.json')
+    # df = pd.read_json('emails_manual.json')
+    df = pd.read_json('emails_bert.json')
 
-    n = 3
+    n = 2
 
     df['tags'] = df['tags'].transform(
         lambda tags: [tag for tag in tags if tag in TAGS]
@@ -88,5 +89,4 @@ if __name__ == '__main__':
         for pattern, count in sorted_dict.items():
             labels = pattern.split('_')
             f.write(
-                f'{labels[0]} $ \\rightarrow $ {labels[1]} $ \\rightarrow $ {labels[2]} & {count} \\\ \hline\n')
-    # print('yo')
+                f'{labels[0]} $ \\rightarrow $ {labels[1]} & {count} \\\ \hline\n')

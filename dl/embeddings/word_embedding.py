@@ -76,54 +76,54 @@ if __name__ == '__main__':
         normalize_unicode,
         expand_contraction]
 
-    # input_data = [preprocess_text(email, processing_function_list) for email in column_data]
-    #
-    # # Parse html
-    # input_data = [BeautifulSoup(email, features="html.parser").get_text() for email in input_data]
-    #
-    # # Remove embedded emails
-    # input_data = [remove_embedded(email) for email in input_data]
-    #
-    # # To lower case
-    # input_data = [email.lower() for email in input_data]
-    #
-    # # Remove urls
-    # url_pattern = r'(https?://\S+)'
-    # input_data = [re.sub(url_pattern, '<url>', email) for email in input_data]
-    #
-    # # Remove class paths
-    # class_path_pattern = r'.*(org\.|java\.|com\.).*'
-    # input_data = [re.sub(class_path_pattern, '<classpath>', email) for email in input_data]
-    #
-    # # Replace special characters
-    # special_character_pattern = r'[^a-zA-Z0-9\s]'
-    # input_data = [re.sub(special_character_pattern, ' ', email) for email in input_data]
-    #
-    # # Replace digits
-    # digits_pattern = r'\d+'
-    # input_data = [re.sub(digits_pattern, '', email) for email in input_data]
-    #
-    # # Remove stop words
-    # input_data = [remove_stop_words(email) for email in input_data]
-    #
-    # # Lemmatization
-    # input_data = [lemmatize_sentence(email) for email in input_data]
-    #
-    # # Remove single letters
-    # input_data = [re.sub(r'\b\w\b', '', email) for email in input_data]
-    #
-    # # Remove whitespace
-    # input_data = [remove_whitespace(email) for email in input_data]
-    #
-    # input_data = [email.split(' ') for email in input_data]
+    input_data = [preprocess_text(email, processing_function_list) for email in column_data]
+
+    # Parse html
+    input_data = [BeautifulSoup(email, features="html.parser").get_text() for email in input_data]
+
+    # Remove embedded emails
+    input_data = [remove_embedded(email) for email in input_data]
+
+    # To lower case
+    input_data = [email.lower() for email in input_data]
+
+    # Remove urls
+    url_pattern = r'(https?://\S+)'
+    input_data = [re.sub(url_pattern, '<url>', email) for email in input_data]
+
+    # Remove class paths
+    class_path_pattern = r'.*(org\.|java\.|com\.).*'
+    input_data = [re.sub(class_path_pattern, '<classpath>', email) for email in input_data]
+
+    # Replace special characters
+    special_character_pattern = r'[^a-zA-Z0-9\s]'
+    input_data = [re.sub(special_character_pattern, ' ', email) for email in input_data]
+
+    # Replace digits
+    digits_pattern = r'\d+'
+    input_data = [re.sub(digits_pattern, '', email) for email in input_data]
+
+    # Remove stop words
+    input_data = [remove_stop_words(email) for email in input_data]
+
+    # Lemmatization
+    input_data = [lemmatize_sentence(email) for email in input_data]
+
+    # Remove single letters
+    input_data = [re.sub(r'\b\w\b', '', email) for email in input_data]
+
+    # Remove whitespace
+    input_data = [remove_whitespace(email) for email in input_data]
+
+    input_data = [email.split(' ') for email in input_data]
 
     # with open('whole_dataset_preprocessed.csv', 'w') as file:
     #     for row in input_data:
     #         file.write(','.join(row))
     #         file.write('\n')
-
-    with open('whole_dataset_preprocessed.csv', 'r') as file:
-        input_data = [line.strip().split(',') for line in file]
+    #
+    # with open('whole_dataset_preprocessed.csv', 'r') as file:
+    #     input_data = [line.strip().split(',') for line in file]
 
     model = Word2Vec(input_data,
                      vector_size=200,

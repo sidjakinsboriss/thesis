@@ -7,7 +7,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from text_preprocessing import expand_contraction, normalize_unicode
+from text_preprocessing import expand_contraction, normalize_unicode, remove_whitespace
 from text_preprocessing import preprocess_text
 
 
@@ -70,30 +70,21 @@ class PreProcessor:
         :return: preprocessed dataset
         """
         # Get only the columns needed for training
-        self.df = self.df[['SUBJECT', 'BODY', 'TAGS', 'ID', 'PARENT_ID']]
+        self.df = self.df[['CONTENT', 'TAGS', 'ID', 'PARENT_ID']]
 
         # Remove unnecessary labels
         self.df['TAGS'] = self.df['TAGS'].str.strip('[]')
-
-        self.df = self.df[self.df['TAGS'].str.contains('bs, ')]
-        self.df['TAGS'] = self.df['TAGS'].transform(
-            lambda x: self.remove_labels(x.split(', '))
-        )
-
-        self.df['TAGS'] = self.df['TAGS'].transform(
-            lambda x: self.remove_labels(x.split(', '))
-        )
+        #
+        # self.df['TAGS'] = self.df['TAGS'].transform(
+        #     lambda x: self.remove_labels(x.split(', '))
+        # )
 
         # Remove entries that have empty tags
-        self.df = self.df[~(self.df['TAGS'] == '')]
+        # self.df = self.df[~(self.df['TAGS'] == '')]
 
         processing_function_list = [normalize_unicode, expand_contraction]
 
-        # texts = self.df['BODY'].tolist()
-        #
-        # for text in texts:
-
-        self.df['CONTENT'] = self.df['BODY'].transform(
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
             lambda x: str(x)
         )
 
@@ -111,43 +102,43 @@ class PreProcessor:
             lambda x: self.remove_embedded(x)
         )
 
-        # # To lower case
-        # self.df['CONTENT'] = self.df['CONTENT'].transform(
-        #     lambda x: x.lower()
-        # )
-        #
-        # # Remove URLs
-        # url_pattern = r'(https?://\S+)'
-        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(url_pattern, '<url>', regex=True)
-        #
-        # # Replace class paths
-        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\b(org\.|class\.|com\.)[\w.]+', '<classpath>',
-        #                                                     regex=True)
-        #
-        # # Replace special characters
-        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'[^a-zA-Z0-9\s]', ' ',
-        #                                                     regex=True)
-        #
-        # # Replace digits
-        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\d+', '', regex=True)
-        #
-        # # Remove stop words
-        # self.df['CONTENT'] = self.df['CONTENT'].transform(
-        #     lambda x: self.remove_stop_words(x)
-        # )
-        #
-        # # Lemmatization
-        # self.df['CONTENT'] = self.df['CONTENT'].transform(
-        #     lambda x: self.lemmatize_sentence(x)
-        # )
-        #
-        # # Remove single letters
-        # self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\b\w\b', '', regex=True)
-        #
-        # # Remove whitespace
-        # self.df['CONTENT'] = self.df['CONTENT'].transform(
-        #     lambda x: remove_whitespace(x)
-        # )
+        # To lower case
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
+            lambda x: x.lower()
+        )
+
+        # Remove URLs
+        url_pattern = r'(https?://\S+)'
+        self.df['CONTENT'] = self.df['CONTENT'].str.replace(url_pattern, '<url>', regex=True)
+
+        # Replace class paths
+        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\b(org\.|class\.|com\.)[\w.]+', '<classpath>',
+                                                            regex=True)
+
+        # Replace special characters
+        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'[^a-zA-Z0-9\s]', ' ',
+                                                            regex=True)
+
+        # Replace digits
+        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\d+', '', regex=True)
+
+        # Remove stop words
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
+            lambda x: self.remove_stop_words(x)
+        )
+
+        # Lemmatization
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
+            lambda x: self.lemmatize_sentence(x)
+        )
+
+        # Remove single letters
+        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\b\w\b', '', regex=True)
+
+        # Remove whitespace
+        self.df['CONTENT'] = self.df['CONTENT'].transform(
+            lambda x: remove_whitespace(x)
+        )
 
         condition = self.df['CONTENT'] == ''
         self.df = self.df[~condition]
@@ -155,11 +146,14 @@ class PreProcessor:
         self.df = self.df[['CONTENT', 'TAGS', 'ID', 'PARENT_ID']]
 
     def export_to_json(self):
-        self.df.to_json(os.path.join(os.getcwd(), "../data/whole_dataset.json"), index=True, orient='index', indent=4)
+        self.df.to_json(os.path.join(os.getcwd(), "../data/preprocessed.json"), index=True, orient='index', indent=4)
+
+    def export_to_csv(self):
+        self.df.to_csv(os.path.join(os.getcwd(), "../data/preprocessed.csv"))
 
 
 if __name__ == "__main__":
     df = pd.read_csv("../data/data.csv")
     pre_processor = PreProcessor(df)
     pre_processor.pre_process()
-    pre_processor.export_to_json()
+    pre_processor.export_to_csv()

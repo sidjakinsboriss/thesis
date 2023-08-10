@@ -60,40 +60,40 @@ if __name__ == '__main__':
     df = df[~df['ID'].isin(tagged_email_ids)]
     email_texts = df['CONTENT'].tolist()
     email_ids = df['ID'].tolist()
-    #
-    # # Replace nan values with an empty string
-    # for i, text in enumerate(email_texts):
-    #     if not isinstance(text, str):
-    #         email_texts[i] = ''
-    #
-    # tokenizer = DistilBertTokenizerFast.from_pretrained('distilbert-base-uncased')
-    # ids, attention = batch_encode(tokenizer, email_texts)
-    #
-    # ids_numpy = ids.numpy()
-    # attention_numpy = attention.numpy()
-    #
-    # # Save using numpy save
-    # np.save('ids.npy', ids_numpy)
-    # np.save('attention.npy', attention_numpy)
 
-    # ids = np.load('ids.npy')
-    # attention = np.load('attention.npy')
-    #
-    # ids = tf.convert_to_tensor(ids)
-    # attention = tf.convert_to_tensor(attention)
-    #
-    # # Load the model
-    # model = tf.keras.models.load_model('../bert.h5', custom_objects={"TFDistilBertModel": TFDistilBertModel})
-    #
-    # # Predict the labels
-    # output = model.predict([ids, attention])
-    # output = tf.math.sigmoid(output).numpy()
-    #
-    # threshold = 0.5
-    # predictions = (output >= threshold).astype(int)
-    #
-    # predictions = predictions.numpy()
-    # np.save('predictions.npy', predictions)
+    # Replace nan values with an empty string
+    for i, text in enumerate(email_texts):
+        if not isinstance(text, str):
+            email_texts[i] = ''
+
+    tokenizer = DistilBertTokenizerFast.from_pretrained('distilbert-base-uncased')
+    ids, attention = batch_encode(tokenizer, email_texts)
+
+    ids_numpy = ids.numpy()
+    attention_numpy = attention.numpy()
+
+    # Save using numpy save
+    np.save('ids.npy', ids_numpy)
+    np.save('attention.npy', attention_numpy)
+
+    ids = np.load('ids.npy')
+    attention = np.load('attention.npy')
+
+    ids = tf.convert_to_tensor(ids)
+    attention = tf.convert_to_tensor(attention)
+
+    # Load the model
+    model = tf.keras.models.load_model('../bert.h5', custom_objects={"TFDistilBertModel": TFDistilBertModel})
+
+    # Predict the labels
+    output = model.predict([ids, attention])
+    output = tf.math.sigmoid(output).numpy()
+
+    threshold = 0.5
+    predictions = (output >= threshold).astype(int)
+
+    predictions = predictions.numpy()
+    np.save('predictions.npy', predictions)
 
     predictions = np.load('predictions.npy')
 

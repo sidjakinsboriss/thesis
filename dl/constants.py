@@ -1,5 +1,5 @@
 MODEL_NAME = 'distilbert-base-uncased'
-NUM_CLASSES = 5
+NUM_CLASSES = 4
 MAX_SEQUENCE_LENGTH = 500
 EMBEDDING_DIM = 200
-TAGS = ['existence', 'not-ak', 'process', 'property', 'technology']
+TAGS = ['existence', 'process', 'property', 'technology', 'not-ak']

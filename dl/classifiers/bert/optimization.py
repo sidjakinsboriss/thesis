@@ -1,6 +1,5 @@
-import os
-
 import keras_tuner as kt
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 from transformers import DistilBertTokenizerFast
@@ -29,7 +28,7 @@ def batch_encode(tokenizer, texts, max_length=MAX_SEQUENCE_LENGTH):
 
 
 if __name__ == '__main__':
-    df = pd.read_csv(os.path.join(os.getcwd(), 'data/dataframe.csv'))
+    df = pd.read_json('data/labeled_dataset_preprocessed.json', orient='index')
     dataset_handler = DatasetHandler(df)
     dataset_handler.encode_labels()
     dataset_handler.split_dataset()
@@ -38,16 +37,17 @@ if __name__ == '__main__':
     batch_size = 32
     max_epochs = 30
 
-    train_indices, val_indices, test_indices = dataset_handler.get_indices_for_optimization()
+    train_indices, val_indices, test_indices = dataset_handler.get_indices_for_optimization(under_sample=True)
     tokenizer = DistilBertTokenizerFast.from_pretrained(MODEL_NAME)
 
-    train_texts = df['CONTENT'].iloc[train_indices].tolist()
-    val_texts = df['CONTENT'].iloc[val_indices].tolist()
-    test_texts = df['CONTENT'].iloc[test_indices].tolist()
+    train_texts = df['BODY'].iloc[train_indices].tolist()
+    val_texts = df['BODY'].iloc[val_indices].tolist()
+    test_texts = df['BODY'].iloc[test_indices].tolist()
 
-    train_tags = df[dataset_handler.mlb.classes_].iloc[train_indices].values.astype('float32')
-    val_tags = df[dataset_handler.mlb.classes_].iloc[val_indices].values.astype('float32')
-    test_tags = df[dataset_handler.mlb.classes_].iloc[test_indices].values.astype('float32')
+    labels = np.delete(dataset_handler.mlb.classes_, 1)  # remove the not-ak label
+    train_tags = df[labels].iloc[train_indices].values.astype('float32')
+    val_tags = df[labels].iloc[val_indices].values.astype('float32')
+    test_tags = df[labels].iloc[test_indices].values.astype('float32')
 
     train_ids, train_attention = batch_encode(tokenizer, train_texts)
     valid_ids, valid_attention = batch_encode(tokenizer, val_texts)
@@ -59,7 +59,7 @@ if __name__ == '__main__':
                          objective='val_loss',
                          max_epochs=max_epochs,
                          factor=3,
-                         directory='my_dir',
+                         directory='bert_optimization',
                          project_name='bert_optimization')
     tuner.search([train_ids, train_attention], train_tags,
                  validation_data=([valid_ids, valid_attention], val_tags),

@@ -10,11 +10,19 @@ from nltk.stem import WordNetLemmatizer
 from text_preprocessing import expand_contraction, normalize_unicode, remove_whitespace
 from text_preprocessing import preprocess_text
 
+from dl.constants import TAGS
+
 
 class PreProcessor:
     def __init__(self, df: pandas.DataFrame):
+        """
+        This class is responsible for pre-processing the raw email texts. It can then
+        be used to save the pre-processed data in JSON format.
+
+        @param df: dataframe containing raw email texts
+        """
         self.df = df
-        self.relevant_labels = ['process', 'existence', 'technology', 'property', 'not-ak']
+        self.relevant_labels = TAGS
         self.lemmatizer = WordNetLemmatizer()
         self.reply_patterns = [
             re.compile('On .+ wrote:'),
@@ -24,10 +32,7 @@ class PreProcessor:
 
     def remove_embedded(self, raw: str) -> str:
         """
-        Remove emails that were embedded in another.
-        In case one is found, the email affected is printed, as well as the portion removed in red.
-        :param raw:
-        :return:
+        Remove emails that were embedded in another email using regular expressions.
         """
         # containing indexes where a pattern's first match started
         matches = []
@@ -54,106 +59,106 @@ class PreProcessor:
         return ' '.join(filtered_words)
 
     def lemmatize_sentence(self, sentence: str) -> str:
+        """
+        Lemmatization of each word in a sentence.
+        """
         words = nltk.word_tokenize(sentence)
         lemmatized_words = [self.lemmatizer.lemmatize(word) for word in words]
         return ' '.join(lemmatized_words)
 
     def remove_labels(self, labels: list) -> str:
+        """
+        Removes all labels except for 'existence', 'process', 'property', 'technology', 'not-ak'
+        """
         filtered = [label for label in labels if label in self.relevant_labels]
         if 'not-ak' in filtered and len(filtered) > 1:  # This was the case for some reason
             return ''
         return ', '.join(filtered)
 
     def pre_process(self):
-        """
-        Preprocess the dataset by
-        :return: preprocessed dataset
-        """
-        # Get only the columns needed for training
-        self.df = self.df[['CONTENT', 'TAGS', 'ID', 'PARENT_ID']]
-
-        # Remove unnecessary labels
+        # Remove irrelevant labels
         self.df['TAGS'] = self.df['TAGS'].str.strip('[]')
-        #
-        # self.df['TAGS'] = self.df['TAGS'].transform(
-        #     lambda x: self.remove_labels(x.split(', '))
-        # )
-
-        # Remove entries that have empty tags
-        # self.df = self.df[~(self.df['TAGS'] == '')]
+        self.df['TAGS'] = self.df['TAGS'].transform(
+            lambda x: self.remove_labels(x.split(', '))
+        )
 
         processing_function_list = [normalize_unicode, expand_contraction]
-
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
+        self.df['BODY'] = self.df['BODY'].transform(
             lambda x: str(x)
         )
 
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
+        # Normalize unicode and expand contractions
+        self.df['BODY'] = self.df['BODY'].transform(
             lambda x: preprocess_text(x, processing_function_list)
         )
 
         # Parse HTML
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
+        self.df['BODY'] = self.df['BODY'].transform(
             lambda x: BeautifulSoup(x, features="html.parser").get_text()
         )
 
         # Remove embedded emails
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
+        self.df['BODY'] = self.df['BODY'].transform(
             lambda x: self.remove_embedded(x)
         )
 
         # To lower case
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
+        self.df['BODY'] = self.df['BODY'].transform(
             lambda x: x.lower()
         )
 
         # Remove URLs
         url_pattern = r'(https?://\S+)'
-        self.df['CONTENT'] = self.df['CONTENT'].str.replace(url_pattern, '<url>', regex=True)
+        self.df['BODY'] = self.df['BODY'].str.replace(url_pattern, '<url>', regex=True)
 
         # Replace class paths
-        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\b(org\.|class\.|com\.)[\w.]+', '<classpath>',
-                                                            regex=True)
+        self.df['BODY'] = self.df['BODY'].str.replace(r'\b(org\.|class\.|com\.)[\w.]+', '<classpath>',
+                                                      regex=True)
 
         # Replace special characters
-        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'[^a-zA-Z0-9\s]', ' ',
-                                                            regex=True)
+        self.df['BODY'] = self.df['BODY'].str.replace(r'[^a-zA-Z0-9\s]', ' ',
+                                                      regex=True)
 
         # Replace digits
-        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\d+', '', regex=True)
+        self.df['BODY'] = self.df['BODY'].str.replace(r'\d+', '', regex=True)
 
         # Remove stop words
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
+        self.df['BODY'] = self.df['BODY'].transform(
             lambda x: self.remove_stop_words(x)
         )
 
         # Lemmatization
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
+        self.df['BODY'] = self.df['BODY'].transform(
             lambda x: self.lemmatize_sentence(x)
         )
 
         # Remove single letters
-        self.df['CONTENT'] = self.df['CONTENT'].str.replace(r'\b\w\b', '', regex=True)
+        self.df['BODY'] = self.df['BODY'].str.replace(r'\b\w\b', '', regex=True)
 
         # Remove whitespace
-        self.df['CONTENT'] = self.df['CONTENT'].transform(
+        self.df['BODY'] = self.df['BODY'].transform(
             lambda x: remove_whitespace(x)
         )
 
-        condition = self.df['CONTENT'] == ''
+        # Remove empty emails
+        condition = self.df['BODY'] == ''
         self.df = self.df[~condition]
 
-        self.df = self.df[['CONTENT', 'TAGS', 'ID', 'PARENT_ID']]
-
     def export_to_json(self):
-        self.df.to_json(os.path.join(os.getcwd(), "../data/preprocessed.json"), index=True, orient='index', indent=4)
+        """
+        Saves the whole dataset and the labeled part in JSON format
+        """
+        self.df.to_json(os.path.join(os.getcwd(), 'data/whole_dataset_preprocessed.json'), index=True, orient='index',
+                        indent=4)
 
-    def export_to_csv(self):
-        self.df.to_csv(os.path.join(os.getcwd(), "../data/preprocessed.csv"))
+        # Remove entries that have empty tags
+        self.df = self.df[~(self.df['TAGS'] == '')]
+        self.df.to_json(os.path.join(os.getcwd(), 'data/labeled_dataset_preprocessed.json'), index=True, orient='index',
+                        indent=4)
 
 
 if __name__ == "__main__":
-    df = pd.read_csv("../data/data.csv")
+    df = pd.read_csv('data/dataset_exported.csv')
     pre_processor = PreProcessor(df)
     pre_processor.pre_process()
-    pre_processor.export_to_csv()
+    pre_processor.export_to_json()

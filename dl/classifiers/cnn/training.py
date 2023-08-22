@@ -1,5 +1,4 @@
 import math
-import os
 from itertools import chain
 
 import numpy as np
@@ -9,31 +8,27 @@ import tensorflow as tf
 from dl.classifiers.cnn.cnn import EmailCNN
 from dl.constants import MAX_SEQUENCE_LENGTH, EMBEDDING_DIM
 from dl.dataset_handler import DatasetHandler
-from dl.utils import get_embedding_matrix, generate_class_weights, draw_matrix, display_results, \
-    draw_class_confusion_matrices, plot_model
+from dl.utils import get_embedding_matrix, generate_class_weights, draw_matrix, display_results
 
 if __name__ == '__main__':
-    include_parent_email = False
-
-    # df = pd.read_json(os.path.join(os.getcwd(), '../data/preprocessed.json'), orient='index')
-    # df.to_csv(os.path.join(os.getcwd(), '../data/dataframe.csv'), index=None)
-
-    df = pd.read_csv(os.path.join(os.getcwd(), 'data/dataframe.csv'))
+    df = pd.read_json('data/labeled_dataset_preprocessed.json', orient='index')
     dataset_handler = DatasetHandler(df)
     dataset_handler.encode_labels()
     dataset_handler.split_dataset()
 
-    emails = df['CONTENT'].tolist()
+    emails = df['BODY'].tolist()
     tokenizer = tf.keras.preprocessing.text.Tokenizer()
     tokenizer.fit_on_texts(emails)
     sequences = tokenizer.texts_to_sequences(emails)
 
-    # Hyper-parameters
+    # Specify hyper-parameters here
     batch_size = 32
-    epochs = 15
-    n_classes = 5
     lr = 0.0001
-    hidden_size = 256
+    epochs = 40
+    filters = 64
+    hidden_layer_size = 0
+    num_convolutions = 3
+    kernel_size = 3
 
     word_index = tokenizer.word_index
     padded_sequences = tf.keras.preprocessing.sequence.pad_sequences(sequences,
@@ -49,40 +44,21 @@ if __name__ == '__main__':
     tags = []
     pred = []
 
-    for train_indices, val_indices, test_indices in dataset_handler.get_indices():
+    for train_indices, val_indices, test_indices in dataset_handler.get_indices(under_sample=True):
         train_sequences = padded_sequences[train_indices]
         val_sequences = padded_sequences[val_indices]
         test_sequences = padded_sequences[test_indices]
 
-        if include_parent_email:
-            train_parent_indices = dataset_handler.get_parent_indices(train_indices)
-            val_parent_indices = dataset_handler.get_parent_indices(val_indices)
-            test_parent_indices = dataset_handler.get_parent_indices(test_indices)
-
-            train_parent_sequences = padded_sequences[train_parent_indices]
-            val_parent_sequences = padded_sequences[val_parent_indices]
-            test_parent_sequences = padded_sequences[test_parent_indices]
-
-            train_sequences = dataset_handler.concatenate_with_parent_indices(
-                train_sequences, train_indices,
-                train_parent_sequences, train_parent_indices)
-            val_sequences = dataset_handler.concatenate_with_parent_indices(
-                val_sequences, val_indices,
-                val_parent_sequences, val_parent_indices)
-            test_sequences = dataset_handler.concatenate_with_parent_indices(
-                test_sequences, test_indices,
-                test_parent_sequences, test_parent_indices)
-
         labels = np.delete(dataset_handler.mlb.classes_, 1)
-
         train_tags = df[labels].iloc[train_indices].values.astype('float32')
         val_tags = df[labels].iloc[val_indices].values.astype('float32')
         test_tags = df[labels].iloc[test_indices].values.astype('float32')
 
-        optimizer = tf.keras.optimizers.AdamW(learning_rate=lr)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
         loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
-        model = EmailCNN(vocab_length, embedding_matrix).get_model()
+        model = EmailCNN(vocab_length, embedding_matrix, filters=filters, hidden_layer_size=hidden_layer_size,
+                         num_convolutions=num_convolutions, kernel_size=kernel_size).get_model()
         model.compile(optimizer=optimizer, loss=loss)
 
         steps_per_epoch = math.floor(len(train_sequences) / batch_size)
@@ -108,5 +84,7 @@ if __name__ == '__main__':
         pred = np.array(list(chain.from_iterable(pred)))
 
         display_results(tags, pred)
-        draw_class_confusion_matrices(tags, pred)
         draw_matrix(tags, pred)
+
+    # Save the model
+    model.save('cnn.h5')

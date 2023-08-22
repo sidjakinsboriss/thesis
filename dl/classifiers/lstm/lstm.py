@@ -5,7 +5,7 @@ from dl.constants import EMBEDDING_DIM, MAX_SEQUENCE_LENGTH, NUM_CLASSES
 
 
 class EmailRNN:
-    def __init__(self, vocab_length, embedding_matrix, lstm_size=512, hidden_size=128):
+    def __init__(self, vocab_length, embedding_matrix, lstm_size=512, hidden_size=128, num_hidden_layers=0):
         model = tf.keras.models.Sequential()
         model.add(
             tf.keras.layers.Embedding(vocab_length, EMBEDDING_DIM,
@@ -14,7 +14,10 @@ class EmailRNN:
                                           embedding_matrix),
                                       trainable=True, mask_zero=True, batch_size=32))
         model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(lstm_size)))
-        model.add(tf.keras.layers.Dense(hidden_size, activation='relu'))
+
+        for i in range(num_hidden_layers):
+            model.add(tf.keras.layers.Dense(hidden_size))
+
         model.add(tf.keras.layers.Dense(NUM_CLASSES))
 
         self.model = model
@@ -67,7 +70,7 @@ class EmailLSTMHyperModel(kt.HyperModel):
     def fit(self, hp, model, *args, **kwargs):
         return model.fit(
             *args,
-            batch_size=hp.Int('batch_size', min_value=16, max_value=128,
+            batch_size=hp.Int('batch_size', min_value=32, max_value=64,
                               step=32),
             **kwargs,
         )

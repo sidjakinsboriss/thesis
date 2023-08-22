@@ -1,72 +1,25 @@
 import collections
-import json
-from collections import Counter
 
 import numpy as np
-import pandas
 import pandas as pd
 import tensorflow as tf
 from gensim.models import Word2Vec, KeyedVectors
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator
-from sklearn.metrics import multilabel_confusion_matrix, ConfusionMatrixDisplay, \
-    classification_report
+from sklearn.metrics import classification_report
 
 from dl.constants import TAGS
 
 
 def plot_model(model, name: str):
+    """
+    Plots the model architecture.
+    @param model: a TensorFlow model
+    @param name: name of the model (used to save an image)
+    """
     tf.keras.utils.plot_model(model, to_file=f'{name}.png', show_shapes=True,
                               expand_nested=True,
                               show_layer_activations=True)
-
-
-def count_word_occurrences(df: pandas.DataFrame):
-    text = ' '.join(df['CONTENT'].values)
-
-    words = text.split()
-    word_counts = Counter(words)
-    sorted_word_counts = sorted(word_counts.items(), key=lambda x: x[1],
-                                reverse=True)
-
-    word_counts_dict = {word: count for word, count in sorted_word_counts}
-
-    # Export the word counts to JSON
-    with open('word_counts.json', 'w') as f:
-        json.dump(word_counts_dict, f, indent=4)
-
-
-def draw_class_confusion_matrices(ground_truth, predicted):
-    mcm = multilabel_confusion_matrix(ground_truth, predicted)
-
-    # Loop through the confusion matrices and plot them
-    for i, cm in enumerate(mcm):
-        cmd = ConfusionMatrixDisplay(cm,
-                                     display_labels=[f'Not {TAGS[i]}',
-                                                     TAGS[i]])
-        cmd.plot()
-        cmd.ax_.set(title=f'Confusion Matrix for {TAGS[i]}',
-                    xlabel='Predicted', ylabel='Actual')
-        plt.savefig(f"confusion_matrix_{TAGS[i]}.jpg",
-                    bbox_inches='tight')
-
-
-def get_class_weights(df: pandas.DataFrame):
-    labels = TAGS
-    N = len(df)
-
-    class_weights = {}
-    positive_weights = {}
-    negative_weights = {}
-
-    for label in labels:
-        positive_weights[label] = N / (2 * sum(df[label] == 1))
-        negative_weights[label] = N / (2 * sum(df[label] == 0))
-
-    class_weights['positive_weights'] = positive_weights
-    class_weights['negative_weights'] = negative_weights
-
-    return class_weights
 
 
 def plot_tag_distribution(df: pd.DataFrame):
@@ -81,9 +34,11 @@ def plot_tag_distribution(df: pd.DataFrame):
     plt.savefig('manual.jpg', bbox_inches='tight')
 
 
-def plot_label_frequencies(labels):
+def plot_label_frequencies(labels, dataset: str = 'manual'):
+    """
+    Plots the amount of each individual label.
+    """
     label_frequencies = np.sum(labels, axis=0)
-    TAGS = ['existence', 'not-ak', 'process', 'property', 'technology']
 
     label_indices = np.arange(5)
     bars = plt.bar(label_indices, label_frequencies, edgecolor='black')
@@ -99,21 +54,22 @@ def plot_label_frequencies(labels):
         plt.text(bar.get_x() + bar.get_width() / 3, yval + 3, int(yval),
                  va='bottom')
 
-    plt.savefig('label_frequencies.jpg', bbox_inches='tight')
+    plt.savefig(f'analysis/images/label_frequencies_{dataset}.jpg', bbox_inches='tight')
     plt.clf()
 
 
-def plot_dataset_label_combination_frequencies(labels):
+def plot_dataset_label_combination_frequencies(labels, dataset: str = 'manual'):
+    """
+    Plots the amount of label combinations.
+    """
     # Count unique label combinations
     label_counts = collections.defaultdict(int)
-    TAGS = ['existence', 'not-ak', 'process', 'property', 'technology']
-    for i in range(len(labels)):
-        label = labels[i]
-        email_tags = [TAGS[i] for i in range(5) if label[i] == 1]
 
-        if len(email_tags) > 1:
-            label = ', '.join(email_tags)
-            label_counts[label] += 1
+    # Discard all single labels
+    labels = [label for label in labels if len(label) > 1]
+
+    for label in labels:
+        label_counts[', '.join(label)] += 1
 
     # Plot the counts
     labels, counts = zip(*label_counts.items())
@@ -131,17 +87,20 @@ def plot_dataset_label_combination_frequencies(labels):
 
     for bar in bars:
         yval = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width() / 4.0, yval + 3, int(yval),
+        plt.text(bar.get_x() + bar.get_width() / 4.0, yval + 5, int(yval),
                  va='bottom', rotation=90)
 
     plt.ylim(0, max(counts) * 1.2)
-    plt.savefig('label_combination_frequencies.jpg', bbox_inches='tight')
+    plt.savefig(f'analysis/images/label_combination_frequencies_{dataset}.jpg', bbox_inches='tight')
     plt.clf()
 
 
 def plot_email_word_counts(df: pd.DataFrame):
+    """
+    Plots the amount of emails for different word count ranges.
+    """
     length_ranges = [x * 100 for x in range(20)]
-    df['email_length'] = df['CONTENT'].apply(lambda x: len(x))
+    df['email_length'] = df['BODY'].apply(lambda x: len(x))
     df['length_range'] = pd.cut(df['email_length'], bins=length_ranges)
     email_count = df['length_range'].value_counts().sort_index()
 
@@ -161,9 +120,16 @@ def plot_email_word_counts(df: pd.DataFrame):
     plt.clf()
 
 
-def get_embedding_matrix(embedding_dim, word_index, use_so=True):
+def get_embedding_matrix(embedding_dim, word_index, use_so=False):
+    """
+    Generates the embedding matrix that will be used to get the necessary word embeddings during the training.
+    @param embedding_dim: length of word embeddings
+    @param word_index: a dictionary where keys are the words and values are the indices into the embedding matrix
+    @param use_so: whether to use the embeddings trained on Stack Overflow posts
+    @return: embedding matrix
+    """
     if use_so:
-        wv = KeyedVectors.load_word2vec_format('../../embeddings/SO_vectors_200.bin',
+        wv = KeyedVectors.load_word2vec_format('dl/embeddings/SO_vectors_200.bin',
                                                binary=True)
     else:
         gensim_model = Word2Vec.load('dl/embeddings/word2vec_model')
@@ -274,6 +240,12 @@ def transform_output(ground_truth: np.ndarray, predicted: np.ndarray):
 
 
 def generate_class_weights(labels):
+    """
+    Generates class weights that will be applied to the loss function
+    during the training process.
+    @param labels: training labels
+    @return: class weight for each of the 4 labels
+    """
     class_counts = np.sum(labels, axis=0)
 
     class_weight = dict()

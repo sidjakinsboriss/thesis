@@ -91,6 +91,6 @@ class EmailCNNHyperModel(kt.HyperModel):
     def fit(self, hp, model, *args, **kwargs):
         return model.fit(
             *args,
-            batch_size=hp.Int('batch_size', min_value=32, max_value=128, step=32),
+            batch_size=hp.Int('batch_size', min_value=32, max_value=64, step=32),
             **kwargs,
         )
